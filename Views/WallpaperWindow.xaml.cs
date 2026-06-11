@@ -1,6 +1,7 @@
 using System.Windows;
 using LibVLCSharp.Shared;
 using LiveWallpaperApp.Models;
+using System.Windows.Interop;
 
 namespace LiveWallpaperApp.Views;
 
@@ -15,7 +16,6 @@ public partial class WallpaperWindow : Window, IDisposable
     private Media? _currentMedia;
     private string? _currentPath;
     private bool _disposed;
-    private bool _isStopping;
 
     public MonitorInfo Monitor => _monitor;
     public string? CurrentPath => _currentPath;
@@ -62,17 +62,13 @@ public partial class WallpaperWindow : Window, IDisposable
 
         EnsurePlayer();
 
-        _isStopping = false;
         _currentPath = videoPath;
         _currentMedia?.Dispose();
         _currentMedia = new Media(_libVlc!, videoPath, FromType.FromPath);
-
-        // Media-level options mirror the process-level LibVLC options so changed media
-        // keeps the same no-audio, repeat, and caching behavior without recreating VLC.
         _currentMedia.AddOption(":input-repeat=65535");
         _currentMedia.AddOption(":no-audio");
-        _currentMedia.AddOption(":file-caching=1000");
-        _currentMedia.AddOption(":network-caching=1000");
+        _currentMedia.AddOption(":file-caching=500");
+        _currentMedia.AddOption(":network-caching=500");
 
         _mediaPlayer!.Play(_currentMedia);
     }
@@ -89,8 +85,16 @@ public partial class WallpaperWindow : Window, IDisposable
 
     public void Stop()
     {
-        _isStopping = true;
-        _mediaPlayer?.Stop();
+        // Stop on a thread pool thread to avoid blocking the WPF UI thread.
+        // MediaPlayer.Stop() is synchronous in LibVLC and can take 200-500ms.
+        var player = _mediaPlayer;
+        if (player is not null)
+        {
+            Task.Run(() =>
+            {
+                try { player.Stop(); } catch { }
+            }).Wait(2000); // cap at 2s to avoid infinite hang
+        }
     }
 
     private void EnsurePlayer()
@@ -113,7 +117,6 @@ public partial class WallpaperWindow : Window, IDisposable
         VideoView.MediaPlayer = _mediaPlayer;
     }
 
-
     protected override void OnClosed(EventArgs e)
     {
         Dispose();
@@ -128,12 +131,18 @@ public partial class WallpaperWindow : Window, IDisposable
         }
 
         _disposed = true;
-        _isStopping = true;
 
-        if (_mediaPlayer is not null)
+        VideoView.MediaPlayer = null;
+
+        // Stop on background thread to prevent UI deadlock
+        var player = _mediaPlayer;
+        if (player is not null)
         {
-            _mediaPlayer.Stop();
-            _mediaPlayer.Dispose();
+            Task.Run(() =>
+            {
+                try { player.Stop(); } catch { }
+                try { player.Dispose(); } catch { }
+            }).Wait(3000);
         }
 
         _currentMedia?.Dispose();
@@ -142,7 +151,6 @@ public partial class WallpaperWindow : Window, IDisposable
             _libVlc?.Dispose();
         }
 
-        VideoView.MediaPlayer = null;
         GC.SuppressFinalize(this);
     }
 

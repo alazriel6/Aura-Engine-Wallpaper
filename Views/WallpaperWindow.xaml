@@ -16,8 +16,8 @@
         IsHitTestVisible="False">
     <Grid x:Name="Root"
           Background="Black">
-        <WindowsFormsHost IsEnabled="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <vlc:VideoView x:Name="VideoView" Dock="Fill" Enabled="False" />
+        <WindowsFormsHost x:Name="FormsHost" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <vlc:VideoView x:Name="VideoView" Dock="Fill" />
         </WindowsFormsHost>
     </Grid>
 </Window>

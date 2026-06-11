@@ -9,6 +9,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AssemblyName>LiveWallpaperApp</AssemblyName>
     <RootNamespace>LiveWallpaperApp</RootNamespace>
     <Version>1.0.0</Version>
@@ -28,4 +29,13 @@
     <None Include="Config\wallpaper.config.sample.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Resource Include="Assets\icon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\AppIcon.png" />
+  </ItemGroup>
 </Project>
+
+

@@ -18,6 +18,7 @@
         AllowDrop="True"
         DragOver="OnWindowDragOver"
         Drop="OnWindowDrop"
+        Icon="/Assets/AppIcon.png"
         TextElement.Foreground="{DynamicResource TextBrush}">
     <Window.Resources>
         <helpers:PageVisibilityConverter x:Key="PageVisibilityConverter" />
@@ -91,7 +92,11 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Width="28" Height="28" CornerRadius="9" Background="{DynamicResource AccentBrush}" Margin="0,0,12,0" />
+                        <Border Width="28" Height="28" CornerRadius="9" Margin="0,0,12,0">
+                            <Border.Background>
+                                <ImageBrush ImageSource="/Assets/AppIcon.png" Stretch="UniformToFill" />
+                            </Border.Background>
+                        </Border>
                         <StackPanel>
                             <TextBlock Text="Live Wallpaper Studio" FontWeight="SemiBold" />
                             <TextBlock Text="{Binding CurrentStatus}" FontSize="11" Foreground="{DynamicResource MutedTextBrush}" />
@@ -122,7 +127,6 @@
                         <StackPanel DockPanel.Dock="Top">
                             <TextBlock Text="MENU" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="4,0,0,12" />
                             <Button Content="Home" Style="{StaticResource NavButtonStyle}" Command="{Binding SelectPageCommand}" CommandParameter="Dashboard" />
-                            <Button Content="Library" Style="{StaticResource NavButtonStyle}" Command="{Binding SelectPageCommand}" CommandParameter="Library" />
                             <Button Content="Playlist" Style="{StaticResource NavButtonStyle}" Command="{Binding SelectPageCommand}" CommandParameter="Playlist" />
                             <Button Content="Settings" Style="{StaticResource NavButtonStyle}" Command="{Binding SelectPageCommand}" CommandParameter="Settings" />
                             <Button Content="Performance" Style="{StaticResource NavButtonStyle}" Command="{Binding SelectPageCommand}" CommandParameter="Performance" />
@@ -153,203 +157,173 @@
                     <Grid Visibility="{Binding SelectedPage, Converter={StaticResource PageVisibilityConverter}, ConverterParameter=Dashboard}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*" />
-                            <RowDefinition Height="16" />
-                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="660" />
-                            <ColumnDefinition Width="18" />
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="340" />
                         </Grid.ColumnDefinitions>
 
-                        <Border Grid.Column="0"
-                                Width="640"
-                                Height="360"
-                                HorizontalAlignment="Left"
-                                VerticalAlignment="Top"
-                                Style="{StaticResource PanelStyle}"
-                                Padding="0">
-                            <controls:LiveWallpaperPreviewControl VideoPath="{Binding VideoPath}"
-                                                                   PlayerOptions="{Binding ThumbnailVlcOptions}"
-                                                                   IsPreviewActive="{Binding IsDashboardActive}" />
+                        <!-- LEFT SIDE: LIBRARY GRID -->
+                        <Border Grid.Column="0" Style="{StaticResource PanelStyle}" Padding="0" ClipToBounds="True">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                
+                                <Grid Margin="18,18,18,14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                                    <ComboBox Grid.Column="2" ItemsSource="{Binding SortModes}" SelectedItem="{Binding SelectedSortMode}" />
+                                    <Button Grid.Column="4" Content="Refresh" Style="{StaticResource SecondaryButtonStyle}" MinWidth="90" Command="{Binding RefreshLibraryCommand}" />
+                                </Grid>
+
+                                <ListBox Grid.Row="1"
+                                         ItemsSource="{Binding FilteredLibraryPreviews}"
+                                         ItemContainerStyle="{StaticResource CardItemStyle}"
+                                         Background="Transparent"
+                                         BorderThickness="0"
+                                         Padding="18,0,0,0"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         VirtualizingPanel.IsVirtualizing="True"
+                                         VirtualizingPanel.VirtualizationMode="Recycling">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <VirtualizingStackPanel Margin="18,0,0,0" />
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Width="260"
+                                                    Height="192"
+                                                    CornerRadius="14"
+                                                    Background="{DynamicResource SoftPanelBrush}"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
+                                                    BorderThickness="1">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+                                                        <Setter Property="RenderTransform">
+                                                            <Setter.Value>
+                                                                <ScaleTransform ScaleX="1" ScaleY="1" />
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource BorderGlowBrush}" />
+                                                                <Setter Property="RenderTransform">
+                                                                    <Setter.Value>
+                                                                        <ScaleTransform ScaleX="1.015" ScaleY="1.015" />
+                                                                    </Setter.Value>
+                                                                </Setter>
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="128" />
+                                                        <RowDefinition Height="*" />
+                                                    </Grid.RowDefinitions>
+                                                    <controls:AnimatedThumbnailControl VideoPath="{Binding PreviewPath}"
+                                                                                       PlayerOptions="{Binding DataContext.ThumbnailVlcOptions, RelativeSource={RelativeSource AncestorType=ListBox}}" />
+                                                    <Border Grid.Row="0"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Top"
+                                                            Margin="10"
+                                                            Padding="9,4"
+                                                            CornerRadius="10"
+                                                            Background="{DynamicResource AccentBrush}"
+                                                            Visibility="{Binding IsActiveWallpaper, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                        <TextBlock Text="ACTIVE"
+                                                                   Foreground="{DynamicResource AccentTextBrush}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="10" />
+                                                    </Border>
+                                                    <Grid Grid.Row="1" Margin="14,10,14,12">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{Binding Author}" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                        <Button Grid.Column="1"
+                                                                Content="Use"
+                                                                Style="{StaticResource SecondaryButtonStyle}"
+                                                                MinWidth="60"
+                                                                Command="{Binding DataContext.SelectLibraryItemCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                                CommandParameter="{Binding}" />
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
                         </Border>
 
+                        <!-- RIGHT SIDE: PROPERTIES & PREVIEW -->
                         <StackPanel Grid.Column="2">
-                            <Border Style="{StaticResource PanelStyle}" Margin="0,0,0,16">
+                            <Border Style="{StaticResource PanelStyle}" Margin="0,0,0,16" Padding="0" ClipToBounds="True">
                                 <StackPanel>
-                                    <TextBlock Text="Choose Wallpaper" Style="{StaticResource TitleTextStyle}" />
-                                    <TextBlock Text="Pick a video, preview it here, then apply it to your desktop." Style="{StaticResource CaptionStyle}" />
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="10" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBox Text="{Binding VideoPath, UpdateSourceTrigger=PropertyChanged}" />
-                                        <Button Grid.Column="2" Content="Browse" Style="{StaticResource SecondaryButtonStyle}" Command="{Binding BrowseCommand}" />
-                                    </Grid>
-                                    <TextBlock Text="Display" Style="{StaticResource CaptionStyle}" Margin="0,16,0,8" />
-                                    <ComboBox ItemsSource="{Binding MonitorSelections}"
-                                              DisplayMemberPath="DisplayName"
-                                              SelectedValuePath="DeviceName"
-                                              SelectedValue="{Binding SelectedMonitorDeviceName}" />
-                                    <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
-                                        <Button Content="Apply" Style="{StaticResource PrimaryButtonStyle}" Command="{Binding ApplyCommand}" />
-                                        <Button Content="Pause" Margin="10,0,0,0" Style="{StaticResource SecondaryButtonStyle}" Command="{Binding PauseResumeCommand}" />
-                                        <Button Content="Stop" Margin="10,0,0,0" Style="{StaticResource SecondaryButtonStyle}" Command="{Binding StopCommand}" />
+                                    <Border Height="180">
+                                        <controls:LiveWallpaperPreviewControl VideoPath="{Binding VideoPath}"
+                                                                              PlayerOptions="{Binding ThumbnailVlcOptions}"
+                                                                              IsPreviewActive="{Binding IsDashboardActive}" />
+                                    </Border>
+                                    <StackPanel Margin="18">
+                                        <TextBlock Text="Selected Wallpaper" Style="{StaticResource TitleTextStyle}" />
+                                        <TextBlock Text="Preview and properties" Style="{StaticResource CaptionStyle}" />
+                                        
+                                        <Grid Margin="0,10,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox Text="{Binding VideoPath, UpdateSourceTrigger=PropertyChanged}" />
+                                            <Button Grid.Column="2" Content="Browse" Style="{StaticResource SecondaryButtonStyle}" MinWidth="80" Command="{Binding BrowseCommand}" />
+                                        </Grid>
+                                        
+                                        <TextBlock Text="Display Monitor" Style="{StaticResource CaptionStyle}" Margin="0,16,0,8" />
+                                        <ComboBox ItemsSource="{Binding MonitorSelections}"
+                                                  DisplayMemberPath="DisplayName"
+                                                  SelectedValuePath="DeviceName"
+                                                  SelectedValue="{Binding SelectedMonitorDeviceName, Mode=TwoWay}" />
+                                        
+                                        <Grid Margin="0,20,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Button Grid.Column="0" Content="Apply Wallpaper" Style="{StaticResource PrimaryButtonStyle}" MinWidth="110" Command="{Binding ApplyCommand}" />
+                                            <Button Grid.Column="2" Content="Stop" Style="{StaticResource SecondaryButtonStyle}" MinWidth="110" Command="{Binding StopCommand}" />
+                                        </Grid>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
 
                             <Border Style="{StaticResource PanelStyle}">
                                 <StackPanel>
-                                    <TextBlock Text="Quick Mode" Style="{StaticResource TitleTextStyle}" />
-                                    <TextBlock Text="Balanced is recommended for daily use." Style="{StaticResource CaptionStyle}" />
+                                    <TextBlock Text="Quick Performance" Style="{StaticResource TitleTextStyle}" />
+                                    <TextBlock Text="Limit resources immediately." Style="{StaticResource CaptionStyle}" />
                                     <ComboBox ItemsSource="{Binding PerformanceModes}" SelectedItem="{Binding SelectedPerformanceMode}" />
-                                    <TextBlock Text="{Binding SelectedPerformanceMode.Description}" Foreground="{DynamicResource MutedTextBrush}" Margin="0,10,0,0" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
-
-                        <UniformGrid Grid.Row="2" Grid.ColumnSpan="3" Columns="4">
-                            <Border Style="{StaticResource MetricStyle}" Margin="0,0,12,0">
-                                <StackPanel>
-                                    <TextBlock Text="CPU" Style="{StaticResource CaptionStyle}" />
-                                    <TextBlock Text="{Binding PerformanceSnapshot.CpuText}" FontSize="20" FontWeight="SemiBold" />
-                                    <ProgressBar Value="{Binding PerformanceSnapshot.CpuUsagePercent}" Maximum="100" Height="5" Margin="0,10,0,0" />
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource MetricStyle}" Margin="0,0,12,0">
-                                <StackPanel>
-                                    <TextBlock Text="GPU" Style="{StaticResource CaptionStyle}" />
-                                    <TextBlock Text="{Binding PerformanceSnapshot.GpuText}" FontSize="20" FontWeight="SemiBold" />
-                                    <ProgressBar Value="{Binding PerformanceSnapshot.GpuUsagePercent}" Maximum="100" Height="5" Margin="0,10,0,0" />
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource MetricStyle}" Margin="0,0,12,0">
-                                <StackPanel>
-                                    <TextBlock Text="Memory" Style="{StaticResource CaptionStyle}" />
-                                    <TextBlock Text="{Binding PerformanceSnapshot.AppRamMb, StringFormat={}{0:0} MB}" FontSize="20" FontWeight="SemiBold" />
-                                    <ProgressBar Value="{Binding PerformanceSnapshot.RamUsagePercent}" Maximum="100" Height="5" Margin="0,10,0,0" />
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource MetricStyle}">
-                                <StackPanel>
-                                    <TextBlock Text="Desktop" Style="{StaticResource CaptionStyle}" />
-                                    <TextBlock Text="{Binding AutoPauseState.Reason}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{Binding PerformanceSnapshot.VramText}" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" />
-                                </StackPanel>
-                            </Border>
-                        </UniformGrid>
                     </Grid>
 
-                    <Grid Visibility="{Binding SelectedPage, Converter={StaticResource PageVisibilityConverter}, ConverterParameter=Library}">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="14" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <Border Style="{StaticResource PanelStyle}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="160" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="160" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
-                                <ComboBox Grid.Column="2" ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" />
-                                <ComboBox Grid.Column="4" ItemsSource="{Binding SortModes}" SelectedItem="{Binding SelectedSortMode}" />
-                                <Button Grid.Column="6" Content="Refresh" Style="{StaticResource SecondaryButtonStyle}" Command="{Binding RefreshLibraryCommand}" />
-                            </Grid>
-                        </Border>
-
-                        <ListBox Grid.Row="2"
-                                 ItemsSource="{Binding FilteredLibraryPreviews}"
-                                 ItemContainerStyle="{StaticResource CardItemStyle}"
-                                 Background="Transparent"
-                                 BorderThickness="0"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 VirtualizingPanel.IsVirtualizing="True"
-                                 VirtualizingPanel.VirtualizationMode="Recycling">
-                            <ListBox.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <VirtualizingStackPanel />
-                                </ItemsPanelTemplate>
-                            </ListBox.ItemsPanel>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Width="300"
-                                            Height="222"
-                                            CornerRadius="18"
-                                            Background="{DynamicResource SoftPanelBrush}"
-                                            BorderBrush="{DynamicResource BorderBrush}"
-                                            BorderThickness="1">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
-                                                <Setter Property="RenderTransform">
-                                                    <Setter.Value>
-                                                        <ScaleTransform ScaleX="1" ScaleY="1" />
-                                                    </Setter.Value>
-                                                </Setter>
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderGlowBrush}" />
-                                                        <Setter Property="RenderTransform">
-                                                            <Setter.Value>
-                                                                <ScaleTransform ScaleX="1.015" ScaleY="1.015" />
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="148" />
-                                                <RowDefinition Height="*" />
-                                            </Grid.RowDefinitions>
-                                            <controls:AnimatedThumbnailControl VideoPath="{Binding PreviewPath}"
-                                                                               PlayerOptions="{Binding DataContext.ThumbnailVlcOptions, RelativeSource={RelativeSource AncestorType=ListBox}}" />
-                                            <Border Grid.Row="0"
-                                                    HorizontalAlignment="Left"
-                                                    VerticalAlignment="Top"
-                                                    Margin="10"
-                                                    Padding="9,4"
-                                                    CornerRadius="10"
-                                                    Background="{DynamicResource AccentBrush}"
-                                                    Visibility="{Binding IsActiveWallpaper, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                <TextBlock Text="ACTIVE"
-                                                           Foreground="{DynamicResource AccentTextBrush}"
-                                                           FontWeight="SemiBold"
-                                                           FontSize="10" />
-                                            </Border>
-                                            <Grid Grid.Row="1" Margin="14,10,14,12">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                                    <TextBlock Text="{Binding Author}" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextTrimming="CharacterEllipsis" />
-                                                    <TextBlock Text="{Binding TagsText}" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextTrimming="CharacterEllipsis" />
-                                                </StackPanel>
-                                                <Button Grid.Column="1"
-                                                        Content="Use"
-                                                        Style="{StaticResource SecondaryButtonStyle}"
-                                                        Command="{Binding DataContext.SelectLibraryItemCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                                        CommandParameter="{Binding}" />
-                                            </Grid>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Grid>
+                    <Grid Visibility="Collapsed"></Grid>
 
                     <Grid Visibility="{Binding SelectedPage, Converter={StaticResource PageVisibilityConverter}, ConverterParameter=Playlist}">
                         <Border Style="{StaticResource PanelStyle}">
@@ -560,7 +534,7 @@
                                 <ComboBox ItemsSource="{Binding MonitorSelections}"
                                           DisplayMemberPath="DisplayName"
                                           SelectedValuePath="DeviceName"
-                                          SelectedValue="{Binding SelectedMonitorDeviceName}" />
+                                          SelectedValue="{Binding SelectedMonitorDeviceName, Mode=TwoWay}" />
                                 <CheckBox Content="Sync monitors" IsChecked="{Binding Settings.MultiMonitorSync}" Margin="0,18,0,0" />
                             </StackPanel>
                         </Border>

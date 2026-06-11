@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace LiveWallpaperApp.Native;
 
@@ -7,6 +8,7 @@ public static class Win32
     public const int GwlStyle = -16;
     public const int GwlExStyle = -20;
     public const int WsChild = 0x40000000;
+    public const int WsPopup = unchecked((int)0x80000000);
     public const int WsVisible = 0x10000000;
     public const int WsClipChildren = 0x02000000;
     public const int WsClipSiblings = 0x04000000;
@@ -19,6 +21,10 @@ public static class Win32
     public const uint SmtoNormal = 0x0000;
     public const uint SmtoAbortIfHung = 0x0002;
     public const uint WorkerWSpawnMessage = 0x052C;
+
+    private static readonly string LogPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "LiveWallpaperApp", "debug.log");
 
     public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
@@ -49,6 +55,9 @@ public static class Win32
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    public static extern bool EnumChildWindows(IntPtr hwndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern IntPtr SendMessageTimeout(
@@ -91,6 +100,12 @@ public static class Win32
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool GetLastInputInfo(ref LastInputInfo plii);
 
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool IsWindowVisible(IntPtr hWnd);
+
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtr", SetLastError = true)]
     private static extern IntPtr GetWindowLongPtr64(IntPtr hWnd, int nIndex);
 
@@ -117,95 +132,152 @@ public static class Win32
             : new IntPtr(SetWindowLong32(hWnd, nIndex, dwNewLong.ToInt32()));
     }
 
+    private static void Log(string message)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
+            File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n");
+        }
+        catch { }
+    }
+
     /// <summary>
     /// Locates the hidden WorkerW surface used by Explorer to compose the desktop.
-    ///
-    /// Windows does not paint the desktop as one simple bitmap. Explorer owns a Progman
-    /// window and a SHELLDLL_DefView child that hosts the desktop icon ListView. Sending
-    /// message 0x052C to Progman asks Explorer to create an extra WorkerW window. That
-    /// empty WorkerW sits behind SHELLDLL_DefView, so a child HWND placed there becomes
-    /// a desktop background while icons, selection rectangles, and Explorer gestures
-    /// remain on the icon layer.
-    ///
-    /// SetParent is used because VLC renders into an HWND. Re-parenting the WPF renderer
-    /// window into WorkerW lets DWM compose the video in Explorer's desktop tree instead
-    /// of treating it like a normal top-level application window.
+    /// Uses the classic single-pass algorithm: find the top-level window containing
+    /// SHELLDLL_DefView, then get the next WorkerW sibling after it.
     /// </summary>
-    public static IntPtr EnsureWorkerW()
+    public static (IntPtr DesktopHost, IntPtr ShellView) EnsureWorkerW()
     {
+        Log("EnsureWorkerW: starting");
+
         var progman = FindWindow("Progman", null);
+        Log($"EnsureWorkerW: Progman = 0x{progman:X}");
+
         if (progman == IntPtr.Zero)
         {
             throw new InvalidOperationException("Unable to locate the Progman desktop window.");
         }
 
-        SendMessageTimeout(
-            progman,
-            WorkerWSpawnMessage,
-            IntPtr.Zero,
-            IntPtr.Zero,
-            SmtoNormal | SmtoAbortIfHung,
-            1000,
-            out _);
+        // Ask Explorer to spawn the WorkerW pair.
+        // The standard 0,0 message directs Progman to spawn a WorkerW behind the desktop icons.
+        SendMessageTimeout(progman, WorkerWSpawnMessage, IntPtr.Zero, IntPtr.Zero,
+            SmtoNormal | SmtoAbortIfHung, 1000, out _);
 
-        var workerW = IntPtr.Zero;
+        System.Threading.Thread.Sleep(200);
 
+        IntPtr workerW = IntPtr.Zero;
+        IntPtr shellView = IntPtr.Zero;
+
+        // Find SHELLDLL_DefView and get the WorkerW sibling if the desktop split succeeded
         EnumWindows((topHandle, _) =>
         {
-            var shellView = FindWindowEx(topHandle, IntPtr.Zero, "SHELLDLL_DefView", null);
-            if (shellView == IntPtr.Zero)
+            var view = FindWindowEx(topHandle, IntPtr.Zero, "SHELLDLL_DefView", null);
+            if (view != IntPtr.Zero)
             {
-                return true;
+                shellView = view;
+                // If 0x052C succeeded, there is a WorkerW sibling immediately after this topHandle.
+                workerW = FindWindowEx(IntPtr.Zero, topHandle, "WorkerW", null);
+                
+                var sb = new StringBuilder(256);
+                GetClassName(topHandle, sb, sb.Capacity);
+                Log($"EnsureWorkerW: found SHELLDLL_DefView=0x{view:X} in parent=0x{topHandle:X} (class={sb}), workerW sibling=0x{workerW:X}");
+                return false;
             }
-
-            workerW = FindWindowEx(IntPtr.Zero, topHandle, "WorkerW", null);
-            return workerW == IntPtr.Zero;
+            return true;
         }, IntPtr.Zero);
 
-        return workerW != IntPtr.Zero ? workerW : progman;
+        // Fallback: if we can't get WorkerW, attach directly to Progman.
+        var desktopHost = workerW != IntPtr.Zero ? workerW : progman;
+        Log($"EnsureWorkerW: desktopHost = 0x{desktopHost:X} (fallback? {workerW == IntPtr.Zero})");
+        return (desktopHost, shellView);
     }
 
-    public static void ConfigureWallpaperChild(IntPtr childHandle, IntPtr workerWHandle, int x, int y, int width, int height)
+    public static void ConfigureWallpaperChild(IntPtr childHandle, IntPtr desktopHost, IntPtr shellView, int x, int y, int width, int height)
     {
+        Log($"ConfigureWallpaperChild: child=0x{childHandle:X}, host=0x{desktopHost:X}, shell=0x{shellView:X}, pos=({x},{y},{width},{height})");
+
         if (childHandle == IntPtr.Zero)
         {
             throw new ArgumentException("Wallpaper window handle is invalid.", nameof(childHandle));
         }
 
-        if (workerWHandle == IntPtr.Zero)
+        if (desktopHost == IntPtr.Zero)
         {
-            throw new ArgumentException("WorkerW handle is invalid.", nameof(workerWHandle));
+            throw new ArgumentException("Desktop host handle is invalid.", nameof(desktopHost));
         }
 
+        // Make it a child window
         var style = GetWindowLongPtr(childHandle, GwlStyle).ToInt64();
-        style |= WsChild | WsVisible | WsClipChildren | WsClipSiblings;
+        style = (style | WsChild | WsVisible | WsClipChildren | WsClipSiblings) & ~WsPopup;
         SetWindowLongPtr(childHandle, GwlStyle, new IntPtr(style));
 
+        // Make it click-through and non-activatable (but NOT transparent to rendering)
         var exStyle = GetWindowLongPtr(childHandle, GwlExStyle).ToInt64();
-        exStyle |= WsExToolWindow | WsExNoActivate | WsExTransparent;
+        exStyle |= WsExToolWindow | WsExNoActivate;
         SetWindowLongPtr(childHandle, GwlExStyle, new IntPtr(exStyle));
 
-        var rect = new Rect { Left = x, Top = y, Right = x + width, Bottom = y + height };
-        MapWindowPoints(IntPtr.Zero, workerWHandle, ref rect, 2);
+        // Reparent into WorkerW
+        var prevParent = SetParent(childHandle, desktopHost);
+        Log($"ConfigureWallpaperChild: SetParent returned 0x{prevParent:X}");
 
-        SetParent(childHandle, workerWHandle);
+        // Map screen coordinates to WorkerW/Progman client coordinates for multi-monitor
+        var rect = new Rect { Left = x, Top = y, Right = x + width, Bottom = y + height };
+        MapWindowPoints(IntPtr.Zero, desktopHost, ref rect, 2);
+        Log($"ConfigureWallpaperChild: mapped rect=({rect.Left},{rect.Top},{rect.Width},{rect.Height})");
+
         MoveWindow(childHandle, rect.Left, rect.Top, width, height, true);
-        SetWindowPos(childHandle, IntPtr.Zero, rect.Left, rect.Top, width, height, SwpNoZOrder | SwpNoActivate | SwpFrameChanged);
+
+        // Instead of pushing to the absolute bottom (which goes behind the DComp background),
+        // we insert the video precisely BEHIND SHELLDLL_DefView (the icons) in the Z-order.
+        if (desktopHost == FindWindow("Progman", null) || desktopHost == shellView)
+        {
+            IntPtr insertAfter = new IntPtr(1); // Default to HWND_BOTTOM
+            
+            if (desktopHost == shellView)
+            {
+                IntPtr sysListView = FindWindowEx(shellView, IntPtr.Zero, "SysListView32", null);
+                if (sysListView != IntPtr.Zero) insertAfter = sysListView;
+            }
+            else if (desktopHost == FindWindow("Progman", null) && shellView != IntPtr.Zero)
+            {
+                // If attached to Progman, insert immediately behind SHELLDLL_DefView
+                insertAfter = shellView;
+            }
+            
+            SetWindowPos(childHandle, insertAfter, rect.Left, rect.Top, width, height, SwpNoActivate | SwpFrameChanged);
+            Log($"ConfigureWallpaperChild: inserted after 0x{insertAfter:X}");
+        }
+        
+        Log("ConfigureWallpaperChild: done");
+    }
+
+    [DllImport("user32.dll")]
+    public static extern bool EnableWindow(IntPtr hWnd, bool bEnable);
+
+    public static void MakeWindowAndChildrenTransparent(IntPtr hwnd)
+    {
+        void MakeTransparent(IntPtr handle)
+        {
+            var exStyle = GetWindowLongPtr(handle, GwlExStyle).ToInt64();
+            exStyle |= WsExTransparent | WsExNoActivate;
+            SetWindowLongPtr(handle, GwlExStyle, new IntPtr(exStyle));
+            EnableWindow(handle, false);
+        }
+
+        MakeTransparent(hwnd);
+        EnumChildWindows(hwnd, (child, _) =>
+        {
+            MakeTransparent(child);
+            return true;
+        }, IntPtr.Zero);
     }
 
     public static TimeSpan GetIdleTime()
     {
-        var info = new LastInputInfo
-        {
-            Size = (uint)Marshal.SizeOf<LastInputInfo>()
-        };
-
-        if (!GetLastInputInfo(ref info))
-        {
-            return TimeSpan.Zero;
-        }
-
-        var idleTicks = unchecked(Environment.TickCount - (int)info.Time);
-        return TimeSpan.FromMilliseconds(Math.Max(0, idleTicks));
+        var info = new LastInputInfo { Size = (uint)Marshal.SizeOf<LastInputInfo>() };
+        return GetLastInputInfo(ref info)
+            ? TimeSpan.FromMilliseconds((uint)Environment.TickCount - info.Time)
+            : TimeSpan.Zero;
     }
 }

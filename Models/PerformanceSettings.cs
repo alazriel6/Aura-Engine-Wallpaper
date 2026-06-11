@@ -4,7 +4,7 @@ namespace LiveWallpaperApp.Models;
 
 public sealed class PerformanceSettings : ObservableObject
 {
-    private WallpaperRenderEngine _renderEngine = WallpaperRenderEngine.Vlc;
+    private WallpaperRenderEngine _renderEngine = WallpaperRenderEngine.DirectX;
     private HardwareAccelerationMode _hardwareAcceleration = HardwareAccelerationMode.D3D11VA;
     private FpsLimitMode _fpsLimit = FpsLimitMode.Fps30;
     private PowerProfileMode _powerProfile = PowerProfileMode.Balanced;

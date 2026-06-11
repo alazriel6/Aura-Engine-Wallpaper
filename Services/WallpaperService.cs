@@ -13,8 +13,9 @@ public sealed class WallpaperService : IDisposable
 {
     private readonly MonitorService _monitorService;
     private readonly GPUOptimizationService _gpuOptimizationService;
-    private readonly List<WallpaperWindow> _wallpaperWindows = new();
+    private readonly List<WinFormsWallpaperForm> _wallpaperWindows = new();
     private readonly string _stateFilePath;
+    private readonly string _logPath;
     private LibVLC? _sharedWallpaperLibVlc;
     private bool _disposed;
     private bool _isManualPaused;
@@ -24,10 +25,32 @@ public sealed class WallpaperService : IDisposable
     {
         _monitorService = monitorService;
         _gpuOptimizationService = gpuOptimizationService;
+
+        var appDataDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "LiveWallpaperApp");
+
         _stateFilePath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "LiveWallpaperApp",
             "state.json");
+
+        _logPath = Path.Combine(appDataDir, "debug.log");
+
+        // Pre-initialize LibVLC on background thread so it's ready when Apply is called
+        Task.Run(() =>
+        {
+            try
+            {
+                var args = _gpuOptimizationService.BuildWallpaperVlcArguments(new PerformanceSettings());
+                _sharedWallpaperLibVlc = new LibVLC(args.ToArray());
+                Log("Pre-initialized LibVLC OK");
+            }
+            catch (Exception ex)
+            {
+                Log($"Pre-init LibVLC failed: {ex.Message}");
+            }
+        });
     }
 
     public event EventHandler<string>? StatusChanged;
@@ -36,8 +59,15 @@ public sealed class WallpaperService : IDisposable
     public bool IsPaused => _isManualPaused || _isAutoPaused;
     public string? CurrentWallpaperPath { get; private set; }
 
-    public static IReadOnlyList<string> VlcArguments { get; } =
-        new GPUOptimizationService().BuildWallpaperVlcArguments(new PerformanceSettings());
+    private void Log(string message)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_logPath)!);
+            File.AppendAllText(_logPath, $"[{DateTime.Now:HH:mm:ss.fff}] WallpaperService: {message}\n");
+        }
+        catch { }
+    }
 
     public void ApplyWallpaper(string videoPath, string? monitorDeviceName = null)
     {
@@ -48,18 +78,27 @@ public sealed class WallpaperService : IDisposable
     {
         ThrowIfDisposed();
 
+        Log($"ApplyWallpaper called: path={videoPath}, monitor={monitorDeviceName}");
+
         if (string.IsNullOrWhiteSpace(videoPath) || !File.Exists(videoPath))
         {
+            Log($"ApplyWallpaper: file not found: {videoPath}");
             throw new FileNotFoundException("Select a valid MP4 video file before applying a wallpaper.", videoPath);
         }
 
         if (!Application.Current.Dispatcher.CheckAccess())
         {
+            Log("ApplyWallpaper: marshalling to UI thread");
             Application.Current.Dispatcher.Invoke(() => ApplyWallpaper(videoPath, monitorDeviceName, settings));
             return;
         }
 
-        var workerW = Win32.EnsureWorkerW();
+        // Step 1: Find WorkerW
+        Log("ApplyWallpaper: calling EnsureWorkerW");
+        var (desktopHost, shellView) = Win32.EnsureWorkerW();
+        Log($"ApplyWallpaper: desktopHost=0x{desktopHost:X}, shellView=0x{shellView:X}");
+
+        // Step 2: Get target monitors
         var monitors = _monitorService.GetMonitors();
         var targetMonitors = monitors.ToList();
 
@@ -70,51 +109,66 @@ public sealed class WallpaperService : IDisposable
                 .ToList();
         }
 
+        Log($"ApplyWallpaper: targeting {targetMonitors.Count} monitor(s)");
+
+        // Step 3: Remove old windows (non-blocking)
         foreach (var monitor in targetMonitors)
         {
-            var existingWindow = _wallpaperWindows.FirstOrDefault(w => string.Equals(w.Monitor.DeviceName, monitor.DeviceName, StringComparison.OrdinalIgnoreCase));
+            var existingWindow = _wallpaperWindows.FirstOrDefault(w =>
+                string.Equals(w.Monitor.DeviceName, monitor.DeviceName, StringComparison.OrdinalIgnoreCase));
             if (existingWindow != null)
             {
-                try
-                {
-                    existingWindow.Stop();
-                    existingWindow.Close();
-                    existingWindow.Dispose();
-                }
-                catch { }
                 _wallpaperWindows.Remove(existingWindow);
+                try { existingWindow.Dispose(); } catch (Exception ex) { Log($"ApplyWallpaper: old.Dispose error: {ex}"); }
             }
         }
 
+        // Step 4: Create shared LibVLC (once)
         if (_sharedWallpaperLibVlc == null)
         {
             var vlcArguments = _gpuOptimizationService.BuildWallpaperVlcArguments(settings);
+            Log($"ApplyWallpaper: creating LibVLC with args: {string.Join(" ", vlcArguments)}");
             _sharedWallpaperLibVlc = new LibVLC(vlcArguments.ToArray());
+            Log("ApplyWallpaper: LibVLC created OK");
         }
 
+        // Step 5: Create and attach wallpaper windows
         foreach (var monitor in targetMonitors)
         {
-            var wallpaperWindow = new WallpaperWindow(monitor, _sharedWallpaperLibVlc);
+            Log($"ApplyWallpaper: creating window for {monitor.DeviceName} bounds=({monitor.Bounds.Left},{monitor.Bounds.Top},{monitor.Bounds.Width},{monitor.Bounds.Height})");
+
+            var wallpaperWindow = new WinFormsWallpaperForm(monitor, _sharedWallpaperLibVlc);
             wallpaperWindow.Show();
 
-            var handle = new WindowInteropHelper(wallpaperWindow).Handle;
+            var handle = wallpaperWindow.Handle;
+            Log($"ApplyWallpaper: window HWND = 0x{handle:X}");
+
             Win32.ConfigureWallpaperChild(
                 handle,
-                workerW,
+                desktopHost,
+                shellView,
                 monitor.Bounds.Left,
                 monitor.Bounds.Top,
                 monitor.Bounds.Width,
                 monitor.Bounds.Height);
 
+            Log("ApplyWallpaper: calling Play");
             wallpaperWindow.Play(videoPath);
+            
+            // Make the WinForms Form AND the LibVLC VideoView child windows click-through
+            // so the user can interact with their desktop.
+            Win32.MakeWindowAndChildrenTransparent(handle);
+            
             _wallpaperWindows.Add(wallpaperWindow);
+            Log("ApplyWallpaper: Play called OK");
         }
 
         CurrentWallpaperPath = videoPath;
         _isManualPaused = false;
         _isAutoPaused = false;
         SaveState();
-        StatusChanged?.Invoke(this, $"Wallpaper applied to {_wallpaperWindows.Count} display(s) using {settings.HardwareAcceleration} / {settings.PowerProfile}.");
+        Log("ApplyWallpaper: done, state saved");
+        StatusChanged?.Invoke(this, $"Wallpaper applied to {_wallpaperWindows.Count} display(s).");
     }
 
     public void Pause()
@@ -183,25 +237,23 @@ public sealed class WallpaperService : IDisposable
             return;
         }
 
-        foreach (var window in _wallpaperWindows.ToList())
-        {
-            try
-            {
-                window.Stop();
-                window.Close();
-                window.Dispose();
-            }
-            catch
-            {
-                // Shutdown cleanup must keep going even if a renderer is already closed.
-            }
-        }
-
+        var windowsToDispose = _wallpaperWindows.ToList();
         _wallpaperWindows.Clear();
-        _sharedWallpaperLibVlc?.Dispose();
-        _sharedWallpaperLibVlc = null;
         _isManualPaused = false;
         _isAutoPaused = false;
+
+        var libVlc = _sharedWallpaperLibVlc;
+        _sharedWallpaperLibVlc = null;
+
+        Task.Run(() =>
+        {
+            foreach (var window in windowsToDispose)
+            {
+                try { window.Dispose(); } catch { }
+            }
+            try { libVlc?.Dispose(); } catch { }
+        });
+
         SaveState();
         StatusChanged?.Invoke(this, "Wallpaper stopped.");
     }
@@ -260,6 +312,9 @@ public sealed class WallpaperService : IDisposable
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log($"RestoreState failed: {ex.Message}");
+        }
     }
 }

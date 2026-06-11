@@ -67,7 +67,7 @@ public sealed class MainViewModel : ObservableObject
         LibraryPreviews = new ObservableCollection<WallpaperPreviewItem>();
         FilteredLibraryPreviews = new ObservableCollection<WallpaperPreviewItem>();
         Categories = new ObservableCollection<string>(["All"]);
-        RenderEngines = new ObservableCollection<WallpaperRenderEngine>(Enum.GetValues<WallpaperRenderEngine>());
+        RenderEngines = new ObservableCollection<WallpaperRenderEngine>([WallpaperRenderEngine.DirectX]);
         HardwareModes = new ObservableCollection<HardwareAccelerationMode>(Enum.GetValues<HardwareAccelerationMode>());
         FpsModes = new ObservableCollection<FpsLimitMode>(Enum.GetValues<FpsLimitMode>());
         PowerProfiles = new ObservableCollection<PowerProfileMode>(Enum.GetValues<PowerProfileMode>());
@@ -140,7 +140,20 @@ public sealed class MainViewModel : ObservableObject
         _isStartupEnabled = _startupService.IsEnabled();
         SelectedTheme = "Minimal Dark";
         _ = RefreshLibraryAsync();
-        _wallpaperService.RestoreState(Settings);
+
+        // Defer wallpaper restore to after window is rendered so the UI is responsive
+        Application.Current.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, () =>
+        {
+            try
+            {
+                _wallpaperService.RestoreState(Settings);
+                if (!string.IsNullOrEmpty(_wallpaperService.CurrentWallpaperPath))
+                {
+                    VideoPath = _wallpaperService.CurrentWallpaperPath;
+                }
+            }
+            catch { }
+        });
     }
 
     public PerformanceSettings Settings { get; }
@@ -386,14 +399,14 @@ public sealed class MainViewModel : ObservableObject
     {
         try
         {
+            CurrentStatus = "Applying wallpaper...";
             _wallpaperService.ApplyWallpaper(VideoPath, SelectedMonitorDeviceName, Settings);
             PauseResumeCommand.RaiseCanExecuteChanged();
             StopCommand.RaiseCanExecuteChanged();
         }
         catch (Exception ex)
         {
-            CurrentStatus = ex.Message;
-            System.Windows.MessageBox.Show(ex.Message, "Apply Wallpaper", MessageBoxButton.OK, MessageBoxImage.Warning);
+            CurrentStatus = $"Error: {ex.Message}";
         }
     }
 
@@ -447,7 +460,7 @@ public sealed class MainViewModel : ObservableObject
                 LibraryItems.Add(item);
             }
 
-            if (LibraryItems.Count == 0 && File.Exists(VideoPath))
+            if (File.Exists(VideoPath) && !LibraryItems.Any(item => PathsMatch(item.FilePath, VideoPath)))
             {
                 LibraryItems.Add(new WallpaperModel
                 {
@@ -563,4 +576,7 @@ public sealed class MainViewModel : ObservableObject
     }
 }
 
-public sealed record MonitorSelection(string DeviceName, string DisplayName);
+public sealed record MonitorSelection(string DeviceName, string DisplayName)
+{
+    public override string ToString() => DisplayName;
+}

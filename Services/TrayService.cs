@@ -16,7 +16,7 @@ public sealed class TrayService : IDisposable
         _trayIcon = new TaskbarIcon
         {
             ToolTipText = "Live Wallpaper App",
-            Icon = System.Drawing.SystemIcons.Application,
+            IconSource = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Assets/icon.png")),
             ContextMenu = BuildContextMenu(restoreDashboard, pauseResumeWallpaper, stopWallpaper, exitApplication)
         };
 
@@ -35,11 +35,10 @@ public sealed class TrayService : IDisposable
         Action exitApplication)
     {
         var menu = new ContextMenu();
-        
-        var panelBrush = Application.Current.TryFindResource("PanelBrush") as System.Windows.Media.Brush;
-        var textBrush = Application.Current.TryFindResource("TextBrush") as System.Windows.Media.Brush;
-        if (panelBrush != null) menu.Background = panelBrush;
-        if (textBrush != null) menu.Foreground = textBrush;
+        menu.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(10, 13, 18));
+        menu.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 248, 251));
+        menu.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(56, 72, 89));
+        menu.BorderThickness = new Thickness(1);
 
         menu.Items.Add(new MenuItem
         {

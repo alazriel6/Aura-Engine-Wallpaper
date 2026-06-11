@@ -27,19 +27,14 @@ public sealed class GPUOptimizationService
             "--no-video-title-show",
             "--no-mouse-events",
             "--no-keyboard-events",
-            "--video-filter=fps",
-            $"--fps-fps={settings.EffectiveFps}",
+            "--drop-late-frames",
+            "--skip-frames",
             "--avcodec-fast",
             $"--avcodec-threads={settings.DecodeThreadCount}",
             $"--file-caching={GetFileCacheMs(settings)}",
             $"--network-caching={GetNetworkCacheMs(settings)}",
             ToHardwareDecodeOption(settings.HardwareAcceleration)
         };
-
-        if (!settings.VSyncEnabled)
-        {
-            options.Add("--no-video-deco");
-        }
 
         if (settings.PowerProfile is PowerProfileMode.BatterySaver or PowerProfileMode.MinimalResource)
         {
