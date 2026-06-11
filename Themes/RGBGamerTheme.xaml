@@ -1,0 +1,19 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="DarkTheme.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+    <Color x:Key="AccentColor">#FF4FD8</Color>
+    <Color x:Key="BorderGlowColor">#23F09A</Color>
+    <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="AccentTextBrush" Color="#150315" />
+    <SolidColorBrush x:Key="BorderGlowBrush" Color="#B023F09A" />
+    <SolidColorBrush x:Key="PanelBrush" Color="#AA141827" />
+    <SolidColorBrush x:Key="SoftPanelBrush" Color="#60212838" />
+    <SolidColorBrush x:Key="PreviewOverlayBrush" Color="#B0090810" />
+    <LinearGradientBrush x:Key="PreviewGradientBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#2B164A" Offset="0" />
+        <GradientStop Color="#14333A" Offset="0.5" />
+        <GradientStop Color="#472221" Offset="1" />
+    </LinearGradientBrush>
+</ResourceDictionary>

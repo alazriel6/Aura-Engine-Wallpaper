@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "1.0",
+  "activeProfile": "default",
+  "theme": "Dark",
+  "accentColor": "#33F5FF",
+  "startup": {
+    "enabled": true,
+    "startMinimized": true
+  },
+  "performance": {
+    "renderEngine": "Vlc",
+    "userPerformanceMode": "Balanced",
+    "powerProfile": "Balanced",
+    "fpsLimit": "Fps30",
+    "hardwareAcceleration": "D3D11VA",
+    "adaptiveFps": true,
+    "dynamicFrameThrottling": true,
+    "memorySaver": true,
+    "autoPerformanceMode": true,
+    "reduceBackgroundUsage": true,
+    "targetFps": 60,
+    "pauseWhenFullscreenAppActive": true,
+    "pauseWhenMaximizedAppActive": false,
+    "pauseOnBattery": true,
+    "pauseWhenGpuUsageExceedsPercent": 90,
+    "pauseWhenCpuTemperatureExceedsCelsius": 86,
+    "pauseAfterIdleMinutes": 5,
+    "muteVideo": true,
+    "fileCachingMs": 1000,
+    "networkCachingMs": 1000,
+    "decodeThreadCount": 2,
+    "renderScale": 1.0,
+    "textureFiltering": "Bilinear",
+    "vsync": true,
+    "bloom": true,
+    "motionBlur": false,
+    "hdrPipeline": false
+  },
+  "thumbnails": {
+    "animated": true,
+    "fps": 8,
+    "maxConcurrentPlayers": 1,
+    "cacheLimitMb": 256,
+    "previewResolution": "426x240",
+    "ffmpegPreviewTranscode": true,
+    "lazyLoadVisibleCardsOnly": true
+  },
+  "monitors": [
+    {
+      "deviceName": "*",
+      "wallpaperId": "sample-cyber-city",
+      "stretchMode": "fill"
+    }
+  ],
+  "wallpapers": [
+    {
+      "id": "sample-cyber-city",
+      "displayName": "Cyber City Loop",
+      "author": "Local",
+      "type": "video",
+      "category": "City",
+      "filePath": "D:\\Wallpapers\\cyber-city.mp4",
+      "previewPath": "%LOCALAPPDATA%\\LiveWallpaperApp\\PreviewCache\\cyber-city.preview.mp4",
+      "thumbnailPath": "D:\\Wallpapers\\cyber-city.jpg",
+      "resolution": "3840x2160",
+      "fps": 60,
+      "duration": "00:00:18",
+      "tags": [ "city", "neon", "loop" ],
+      "metadata": {
+        "author": "Local",
+        "license": "Personal",
+        "duration": "00:00:18"
+      }
+    }
+  ],
+  "playlist": {
+    "name": "Night Drive",
+    "shuffle": true,
+    "intervalMinutes": 20,
+    "items": [ "sample-cyber-city" ]
+  },
+  "scheduler": {
+    "rules": [
+      {
+        "name": "Night profile",
+        "start": "19:00",
+        "end": "07:00",
+        "days": [ "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" ],
+        "wallpaperId": "sample-cyber-city"
+      }
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="DarkTheme.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+    <Color x:Key="AccentColor">#FF4FD8</Color>
+    <Color x:Key="BorderGlowColor">#FF4FD8</Color>
+    <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="AccentTextBrush" Color="#160314" />
+    <SolidColorBrush x:Key="TextBrush" Color="#FFF7FD" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="#BCA7C6" />
+    <SolidColorBrush x:Key="PanelBrush" Color="#B0180D23" />
+    <SolidColorBrush x:Key="SoftPanelBrush" Color="#652A1838" />
+    <SolidColorBrush x:Key="BorderGlowBrush" Color="#99FF4FD8" />
+    <SolidColorBrush x:Key="PreviewOverlayBrush" Color="#B0130717" />
+</ResourceDictionary>

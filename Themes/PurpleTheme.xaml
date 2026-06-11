@@ -1,0 +1,48 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Color x:Key="AccentColor">#FF4FD8</Color>
+    <Color x:Key="BorderGlowColor">#FF4FD8</Color>
+    <Color x:Key="ShadowColor">#06000A</Color>
+
+    <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="AccentTextBrush" Color="#160314" />
+    <SolidColorBrush x:Key="BackgroundBrush" Color="#0E0813" />
+    <SolidColorBrush x:Key="TextBrush" Color="#FFF7FD" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="#BCA7C6" />
+    <SolidColorBrush x:Key="PanelBrush" Color="#B0180D23" />
+    <SolidColorBrush x:Key="SoftPanelBrush" Color="#652A1838" />
+    <SolidColorBrush x:Key="HoverPanelBrush" Color="#74452C5C" />
+    <SolidColorBrush x:Key="SidebarBrush" Color="#9C12091C" />
+    <SolidColorBrush x:Key="InputBrush" Color="#7A160B22" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#48556A78" />
+    <SolidColorBrush x:Key="BorderGlowBrush" Color="#99FF4FD8" />
+    <SolidColorBrush x:Key="SelectionBrush" Color="#55FF4FD8" />
+    <SolidColorBrush x:Key="StatusBarBrush" Color="#780F0718" />
+    <SolidColorBrush x:Key="WindowGlassBrush" Color="#D00F0818" />
+    <SolidColorBrush x:Key="PreviewOverlayBrush" Color="#B0130717" />
+
+    <LinearGradientBrush x:Key="PreviewGradientBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#39264E" Offset="0" />
+        <GradientStop Color="#172B3B" Offset="0.5" />
+        <GradientStop Color="#4A1F35" Offset="1" />
+    </LinearGradientBrush>
+
+    <DrawingBrush x:Key="PreviewGridBrush"
+                  TileMode="Tile"
+                  Viewport="0,0,42,42"
+                  ViewportUnits="Absolute">
+        <DrawingBrush.Drawing>
+            <GeometryDrawing Brush="Transparent">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#48FF4FD8" Thickness="1" />
+                </GeometryDrawing.Pen>
+                <GeometryDrawing.Geometry>
+                    <GeometryGroup>
+                        <LineGeometry StartPoint="0,0" EndPoint="42,0" />
+                        <LineGeometry StartPoint="0,0" EndPoint="0,42" />
+                    </GeometryGroup>
+                </GeometryDrawing.Geometry>
+            </GeometryDrawing>
+        </DrawingBrush.Drawing>
+    </DrawingBrush>
+</ResourceDictionary>

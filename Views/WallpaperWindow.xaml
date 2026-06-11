@@ -1,0 +1,23 @@
+<Window x:Class="LiveWallpaperApp.Views.WallpaperWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vlc="clr-namespace:LibVLCSharp.WinForms;assembly=LibVLCSharp.WinForms"
+        Title="Live Wallpaper Renderer"
+        WindowStyle="None"
+        WindowStartupLocation="Manual"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="False"
+        Background="Black"
+        Focusable="False"
+        WindowState="Normal"
+        AllowsTransparency="False"
+        IsHitTestVisible="False">
+    <Grid x:Name="Root"
+          Background="Black">
+        <WindowsFormsHost IsEnabled="False" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <vlc:VideoView x:Name="VideoView" Dock="Fill" Enabled="False" />
+        </WindowsFormsHost>
+    </Grid>
+</Window>
