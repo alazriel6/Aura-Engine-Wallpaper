@@ -133,7 +133,16 @@ public sealed class ThumbnailService
         
         return Task.Run(() => 
         {
-            return LiveWallpaperApp.Native.ShellThumbnailProvider.TryExtractThumbnail(sourcePath, previewPath, 426, 240);
+            try
+            {
+                var ffMpeg = new NReco.VideoConverter.FFMpegConverter();
+                ffMpeg.GetVideoThumbnail(sourcePath, previewPath, 1f);
+                return File.Exists(previewPath);
+            }
+            catch
+            {
+                return LiveWallpaperApp.Native.ShellThumbnailProvider.TryExtractThumbnail(sourcePath, previewPath, 426, 240);
+            }
         }, cancellationToken);
     }
 
