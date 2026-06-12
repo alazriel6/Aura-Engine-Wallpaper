@@ -239,6 +239,11 @@
                                                         <Grid>
                                                             <Image Source="{Binding PreviewPath, IsAsync=True}" Stretch="UniformToFill" 
                                                                    Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                                                            <Border Background="{DynamicResource InputBrush}"
+                                                                    Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                <Path Fill="{DynamicResource MutedTextBrush}" Stretch="Uniform" Width="32" Height="32"
+                                                                      Data="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
+                                                            </Border>
                                                             <MediaElement Source="{Binding PreviewPath}" LoadedBehavior="Pause" ScrubbingEnabled="True" Position="00:00:01" Stretch="UniformToFill" 
                                                                    Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                                         </Grid>
@@ -365,6 +370,11 @@
                                                         <Grid>
                                                             <Image Source="{Binding PreviewPath, IsAsync=True}" Stretch="UniformToFill" 
                                                                    Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                                                            <Border Background="{DynamicResource InputBrush}"
+                                                                    Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                <Path Fill="{DynamicResource MutedTextBrush}" Stretch="Uniform" Width="32" Height="32"
+                                                                      Data="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
+                                                            </Border>
                                                             <MediaElement Source="{Binding PreviewPath}" LoadedBehavior="Pause" ScrubbingEnabled="True" Position="00:00:01" Stretch="UniformToFill" 
                                                                    Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                                         </Grid>
@@ -379,6 +389,7 @@
                                                             Padding="9,4"
                                                             CornerRadius="10"
                                                             Background="{DynamicResource AccentBrush}"
+                                                            VerticalAlignment="Center"
                                                             Visibility="{Binding IsActiveWallpaper, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                         <TextBlock Text="ACTIVE"
                                                                    Foreground="{DynamicResource AccentTextBrush}"
