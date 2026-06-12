@@ -136,12 +136,19 @@ public partial class AnimatedThumbnailControl : UserControl, IDisposable
         }
 
         PreviewVideo.MediaPlayer = null;
-        _mediaPlayer?.Stop();
-        _mediaPlayer?.Dispose();
-        _media?.Dispose();
+        
+        var playerToDispose = _mediaPlayer;
+        var mediaToDispose = _media;
 
         _mediaPlayer = null;
         _media = null;
+        
+        Task.Run(() => 
+        {
+            try { playerToDispose?.Stop(); } catch { }
+            try { playerToDispose?.Dispose(); } catch { }
+            try { mediaToDispose?.Dispose(); } catch { }
+        });
         if (_hasPreviewSlot)
         {
             PreviewRenderCoordinator.Shared.Release(_ownerId);
