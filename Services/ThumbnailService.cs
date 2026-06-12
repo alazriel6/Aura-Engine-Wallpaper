@@ -123,61 +123,24 @@ public sealed class ThumbnailService
         }
     }
 
-    private async Task<bool> TryGenerateLowBitratePreviewAsync(
+    private Task<bool> TryGenerateLowBitratePreviewAsync(
         string sourcePath,
         string previewPath,
         PerformanceSettings settings,
         CancellationToken cancellationToken)
     {
-        var ffmpegPath = FindFfmpeg();
-        if (ffmpegPath is null)
-        {
-            return false;
-        }
-
         Directory.CreateDirectory(Path.GetDirectoryName(previewPath)!);
-
-        var arguments =
-            $"-y -hide_banner -loglevel error -ss 00:00:01 -i \"{sourcePath}\" -vframes 1 -vf \"scale=426:-2:flags=fast_bilinear\" -q:v 2 \"{previewPath}\"";
-
-        var process = new Process
+        
+        return Task.Run(() => 
         {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = ffmpegPath,
-                Arguments = arguments,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardError = true,
-                RedirectStandardOutput = true
-            },
-            EnableRaisingEvents = true
-        };
-
-        process.Start();
-        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-        return process.ExitCode == 0 && File.Exists(previewPath);
+            return LiveWallpaperApp.Native.ShellThumbnailProvider.TryExtractThumbnail(sourcePath, previewPath, 426, 240);
+        }, cancellationToken);
     }
 
     private string GetPreviewPath(string sourcePath)
     {
         var identity = $"{sourcePath}|{File.GetLastWriteTimeUtc(sourcePath).Ticks}";
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)));
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity)));
         return Path.Combine(CacheRoot, $"{hash[..20]}.preview.jpg");
-    }
-
-    private static string? FindFfmpeg()
-    {
-        var pathVariable = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-        foreach (var directory in pathVariable.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-        {
-            var candidate = Path.Combine(directory.Trim(), "ffmpeg.exe");
-            if (File.Exists(candidate))
-            {
-                return candidate;
-            }
-        }
-
-        return null;
     }
 }

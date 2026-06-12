@@ -9,4 +9,5 @@ public sealed class WallpaperPackManifest
     public string Description { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
     public List<WallpaperModel> Wallpapers { get; set; } = new();
+    public List<string> WatchedFolders { get; set; } = new();
 }

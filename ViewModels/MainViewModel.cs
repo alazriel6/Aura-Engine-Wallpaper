@@ -64,6 +64,7 @@ public sealed class MainViewModel : ObservableObject
         AvailableThemes = new ObservableCollection<string>(_themeService.AvailableThemes);
         MonitorSelections = new ObservableCollection<MonitorSelection>();
         LibraryItems = new ObservableCollection<WallpaperModel>();
+        WatchedFolders = new ObservableCollection<string>();
         LibraryPreviews = new ObservableCollection<WallpaperPreviewItem>();
         FilteredLibraryPreviews = new ObservableCollection<WallpaperPreviewItem>();
         Categories = new ObservableCollection<string>(["All"]);
@@ -83,6 +84,7 @@ public sealed class MainViewModel : ObservableObject
         _selectedPerformanceMode = PerformanceModes.First(option => option.Value == UserPerformanceMode.Balanced);
 
         BrowseCommand = new RelayCommand(BrowseForVideo);
+        AddFolderCommand = new AsyncRelayCommand(AddFolderToLibraryAsync);
         ApplyCommand = new RelayCommand(ApplyWallpaper, CanApplyWallpaper);
         PauseResumeCommand = new RelayCommand(PauseResumeWallpaper, () => _wallpaperService.IsRunning);
         StopCommand = new RelayCommand(StopWallpaper, () => _wallpaperService.IsRunning);
@@ -163,6 +165,7 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<string> AvailableThemes { get; }
     public ObservableCollection<MonitorSelection> MonitorSelections { get; }
     public ObservableCollection<WallpaperModel> LibraryItems { get; }
+    public ObservableCollection<string> WatchedFolders { get; }
     public ObservableCollection<WallpaperPreviewItem> LibraryPreviews { get; }
     public ObservableCollection<WallpaperPreviewItem> FilteredLibraryPreviews { get; }
     public ObservableCollection<string> Categories { get; }
@@ -175,6 +178,7 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<OptionItem<UserPerformanceMode>> PerformanceModes { get; }
 
     public RelayCommand BrowseCommand { get; }
+    public AsyncRelayCommand AddFolderCommand { get; }
     public RelayCommand ApplyCommand { get; }
     public RelayCommand PauseResumeCommand { get; }
     public RelayCommand StopCommand { get; }
@@ -394,6 +398,26 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    private async Task AddFolderToLibraryAsync()
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Select a folder to watch for live wallpapers",
+            Multiselect = false
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            var folder = dialog.FolderName;
+            if (!WatchedFolders.Contains(folder, StringComparer.OrdinalIgnoreCase))
+            {
+                WatchedFolders.Add(folder);
+                await SaveLibraryAsync().ConfigureAwait(true);
+                await RefreshLibraryAsync().ConfigureAwait(true);
+            }
+        }
+    }
+
     private bool CanApplyWallpaper()
     {
         return File.Exists(VideoPath);
@@ -453,21 +477,24 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    private async Task SaveLibraryAsync()
+    {
+        try
+        {
+            var manifest = new WallpaperPackManifest { Name = "Local Library" };
+            manifest.WatchedFolders.AddRange(WatchedFolders);
+            foreach (var item in LibraryItems.Where(i => !string.Equals(i.Category, "Session", StringComparison.OrdinalIgnoreCase)))
+            {
+                manifest.Wallpapers.Add(item);
+            }
+            await _libraryService.SaveAsync(manifest).ConfigureAwait(false);
+        }
+        catch { }
+    }
+
     private void SaveLibraryBackground()
     {
-        Task.Run(async () =>
-        {
-            try
-            {
-                var manifest = new WallpaperPackManifest { Name = "Local Library" };
-                foreach (var item in LibraryItems.Where(i => !string.Equals(i.Category, "Session", StringComparison.OrdinalIgnoreCase)))
-                {
-                    manifest.Wallpapers.Add(item);
-                }
-                await _libraryService.SaveAsync(manifest).ConfigureAwait(false);
-            }
-            catch { }
-        });
+        _ = SaveLibraryAsync();
     }
 
     private async Task RefreshLibraryAsync()
@@ -475,10 +502,47 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             var manifest = await _libraryService.LoadAsync().ConfigureAwait(true);
+            
+            Application.Current.Dispatcher.Invoke(() => 
+            {
+                WatchedFolders.Clear();
+                foreach (var folder in manifest.WatchedFolders)
+                {
+                    WatchedFolders.Add(folder);
+                }
+            });
+
             LibraryItems.Clear();
             foreach (var item in manifest.Wallpapers)
             {
                 LibraryItems.Add(item);
+            }
+
+            foreach (var folder in manifest.WatchedFolders)
+            {
+                if (Directory.Exists(folder))
+                {
+                    var videoFiles = Directory.EnumerateFiles(folder, "*.*")
+                        .Where(f => f.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) ||
+                                    f.EndsWith(".webm", StringComparison.OrdinalIgnoreCase) ||
+                                    f.EndsWith(".mkv", StringComparison.OrdinalIgnoreCase) ||
+                                    f.EndsWith(".mov", StringComparison.OrdinalIgnoreCase));
+
+                    foreach (var file in videoFiles)
+                    {
+                        if (!LibraryItems.Any(item => PathsMatch(item.FilePath, file)))
+                        {
+                            LibraryItems.Add(new WallpaperModel
+                            {
+                                DisplayName = Path.GetFileNameWithoutExtension(file),
+                                FilePath = file,
+                                Category = "Folder",
+                                ImportedAt = File.GetCreationTimeUtc(file),
+                                LastUsedAt = DateTimeOffset.MinValue
+                            });
+                        }
+                    }
+                }
             }
 
             if (File.Exists(VideoPath) && !LibraryItems.Any(item => PathsMatch(item.FilePath, VideoPath)))
@@ -488,7 +552,8 @@ public sealed class MainViewModel : ObservableObject
                     DisplayName = Path.GetFileNameWithoutExtension(VideoPath),
                     FilePath = VideoPath,
                     Category = "Session",
-                    Tags = ["session", "preview"]
+                    ImportedAt = DateTimeOffset.Now,
+                    LastUsedAt = DateTimeOffset.Now
                 });
             }
 

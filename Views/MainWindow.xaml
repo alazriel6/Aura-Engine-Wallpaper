@@ -179,10 +179,13 @@
                                         <ColumnDefinition Width="160" />
                                         <ColumnDefinition Width="12" />
                                         <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
                                     <ComboBox Grid.Column="2" ItemsSource="{Binding SortModes}" SelectedItem="{Binding SelectedSortMode}" />
-                                    <Button Grid.Column="4" Content="Refresh" Style="{StaticResource SecondaryButtonStyle}" MinWidth="90" Command="{Binding RefreshLibraryCommand}" />
+                                    <Button Grid.Column="4" Content="Add Folder" Style="{StaticResource SecondaryButtonStyle}" MinWidth="90" Command="{Binding AddFolderCommand}" />
+                                    <Button Grid.Column="6" Content="Refresh" Style="{StaticResource SecondaryButtonStyle}" MinWidth="90" Command="{Binding RefreshLibraryCommand}" />
                                 </Grid>
 
                                 <ListBox Grid.Row="1"
@@ -353,6 +356,9 @@
                                                     BorderBrush="{DynamicResource BorderBrush}"
                                                     BorderThickness="1">
                                                 <DockPanel LastChildFill="True">
+                                                    <Border DockPanel.Dock="Left" Width="120" Height="68" Margin="0,0,14,0" CornerRadius="8" ClipToBounds="True">
+                                                        <Image Source="{Binding PreviewPath, IsAsync=True}" Stretch="UniformToFill" />
+                                                    </Border>
                                                     <Button DockPanel.Dock="Right"
                                                             Content="Use"
                                                             Style="{StaticResource SecondaryButtonStyle}"
@@ -369,9 +375,9 @@
                                                                    FontWeight="SemiBold"
                                                                    FontSize="10" />
                                                     </Border>
-                                                    <StackPanel>
+                                                    <StackPanel VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                                                        <TextBlock Text="{Binding FilePath}" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding FilePath}" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
                                                     </StackPanel>
                                                 </DockPanel>
                                             </Border>
