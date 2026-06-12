@@ -156,6 +156,8 @@ public sealed class MainViewModel : ObservableObject
                 {
                     VideoPath = _wallpaperService.CurrentWallpaperPath;
                 }
+                PauseResumeCommand.RaiseCanExecuteChanged();
+                StopCommand.RaiseCanExecuteChanged();
             }
             catch { }
         });
