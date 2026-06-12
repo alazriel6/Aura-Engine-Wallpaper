@@ -94,7 +94,8 @@ public sealed class ThumbnailService
             return;
         }
 
-        var files = Directory.GetFiles(CacheRoot, "*.mp4")
+        var files = Directory.EnumerateFiles(CacheRoot, "*.*")
+            .Where(f => f.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase))
             .Select(path => new FileInfo(path))
             .OrderByDescending(file => file.LastAccessTimeUtc)
             .ToList();
@@ -136,9 +137,8 @@ public sealed class ThumbnailService
 
         Directory.CreateDirectory(Path.GetDirectoryName(previewPath)!);
 
-        var fps = Math.Clamp(settings.ThumbnailFps, 5, 15);
         var arguments =
-            $"-y -hide_banner -loglevel error -i \"{sourcePath}\" -t 8 -vf \"scale=426:-2:flags=fast_bilinear,fps={fps}\" -an -c:v libx264 -preset veryfast -crf 32 -movflags +faststart \"{previewPath}\"";
+            $"-y -hide_banner -loglevel error -ss 00:00:01 -i \"{sourcePath}\" -vframes 1 -vf \"scale=426:-2:flags=fast_bilinear\" -q:v 2 \"{previewPath}\"";
 
         var process = new Process
         {
@@ -163,7 +163,7 @@ public sealed class ThumbnailService
     {
         var identity = $"{sourcePath}|{File.GetLastWriteTimeUtc(sourcePath).Ticks}";
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)));
-        return Path.Combine(CacheRoot, $"{hash[..20]}.preview.mp4");
+        return Path.Combine(CacheRoot, $"{hash[..20]}.preview.jpg");
     }
 
     private static string? FindFfmpeg()

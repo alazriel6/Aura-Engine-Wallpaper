@@ -232,8 +232,9 @@
                                                         <RowDefinition Height="128" />
                                                         <RowDefinition Height="*" />
                                                     </Grid.RowDefinitions>
-                                                    <controls:AnimatedThumbnailControl VideoPath="{Binding PreviewPath}"
-                                                                                       PlayerOptions="{Binding DataContext.ThumbnailVlcOptions, RelativeSource={RelativeSource AncestorType=ListBox}}" />
+                                                    <Border Grid.Row="0" CornerRadius="13,13,0,0" ClipToBounds="True">
+                                                        <Image Source="{Binding PreviewPath, IsAsync=True}" Stretch="UniformToFill" />
+                                                    </Border>
                                                     <Border Grid.Row="0"
                                                             HorizontalAlignment="Left"
                                                             VerticalAlignment="Top"

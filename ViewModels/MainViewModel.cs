@@ -105,9 +105,10 @@ public sealed class MainViewModel : ObservableObject
 
             VideoPath = preview.FilePath;
             preview.Wallpaper.LastUsedAt = DateTimeOffset.Now;
-            SaveLibraryBackground();
             SelectedPage = "Dashboard";
             CurrentStatus = $"Loaded {preview.DisplayName} from the library.";
+            ApplyLibraryFilters();
+            UpdateActivePreviewFlags();
         });
         ApplyPowerProfileCommand = new RelayCommand(parameter =>
         {
@@ -389,6 +390,7 @@ public sealed class MainViewModel : ObservableObject
         {
             VideoPath = dialog.FileName;
             CurrentStatus = "Video selected.";
+            _ = RefreshLibraryAsync();
         }
     }
 
