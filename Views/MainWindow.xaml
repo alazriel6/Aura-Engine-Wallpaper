@@ -340,73 +340,140 @@
                     <Grid Visibility="Collapsed"></Grid>
 
                     <Grid Visibility="{Binding SelectedPage, Converter={StaticResource PageVisibilityConverter}, ConverterParameter=Playlist}">
-                        <Border Style="{StaticResource PanelStyle}">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="16" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="Playlist" Style="{StaticResource TitleTextStyle}" />
-                                    <TextBlock Text="Wallpaper yang sedang dipilih ditandai ACTIVE. Playlist sengaja ringan: tidak memutar semua preview sekaligus." Style="{StaticResource CaptionStyle}" />
-                                </StackPanel>
-                                <ListBox Grid.Row="2"
-                                         ItemsSource="{Binding FilteredLibraryPreviews}"
-                                         Background="Transparent"
-                                         BorderThickness="0"
-                                         VirtualizingPanel.IsVirtualizing="True"
-                                         VirtualizingPanel.VirtualizationMode="Recycling">
+                        <ScrollViewer Margin="30">
+                            <StackPanel MaxWidth="1050">
+                                <!-- HEADER HUD -->
+                                <Grid Margin="0,0,0,25">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <StackPanel Grid.Column="0">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                            <Path Data="M19,3H5C3.89,3 3,3.89 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19V5C21,3.89 20.1,3 19,3M19,19H5V5H19V19M17,17H7V7H17V17M15,15H9V9H15V15Z" Fill="#22d3ee" Width="24" Height="24" Stretch="Uniform" Margin="0,0,10,0"/>
+                                            <TextBlock Text="SYSTEM_PLAYLIST" FontSize="28" FontWeight="Bold" Foreground="#22d3ee"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Ellipse Width="6" Height="6" Fill="#22d3ee" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="STATUS: [AWAITING_INPUT]" Foreground="#22d3ee" FontFamily="Consolas" FontSize="11"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Right">
+                                        <TextBlock Text="MEM: OPTIMIZED" Foreground="#64748b" FontFamily="Consolas" FontSize="10" TextAlignment="Right"/>
+                                        <TextBlock Foreground="#64748b" FontFamily="Consolas" FontSize="10" TextAlignment="Right">
+                                            <Run Text="ITEMS_LOADED: "/>
+                                            <Run Text="{Binding FilteredLibraryPreviews.Count, Mode=OneWay}" Foreground="#818cf8"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Line X1="0" Y1="0" X2="1050" Y2="0" Stroke="#22FFFFFF" StrokeThickness="1" Margin="0,0,0,20"/>
+
+                                <!-- PLAYLIST GRID -->
+                                <ListBox ItemsSource="{Binding FilteredLibraryPreviews}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Margin="0,0,0,10"
-                                                    Padding="14"
-                                                    CornerRadius="14"
-                                                    Background="{DynamicResource SoftPanelBrush}"
-                                                    BorderBrush="{DynamicResource BorderBrush}"
-                                                    BorderThickness="1">
-                                                <DockPanel LastChildFill="True">
-                                                    <Border DockPanel.Dock="Left" Width="120" Height="68" Margin="0,0,14,0" CornerRadius="8" ClipToBounds="True">
+                                            <!-- Card -->
+                                            <Border Margin="10" Width="310" Height="280" CornerRadius="12" Background="#111625" BorderThickness="1">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="BorderBrush" Value="#1AFFFFFF"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsActiveWallpaper}" Value="True">
+                                                                <Setter Property="BorderBrush" Value="#7006B6D4"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="140" />
+                                                        <RowDefinition Height="*" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
+                                                    
+                                                    <!-- THUMBNAIL -->
+                                                    <Border Grid.Row="0" Margin="12,12,12,0" CornerRadius="8" Background="#0A0A0A" BorderBrush="#22FFFFFF" BorderThickness="1" ClipToBounds="True">
                                                         <Grid>
-                                                            <Image Source="{Binding PreviewPath, IsAsync=True}" Stretch="UniformToFill" 
-                                                                   Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
-                                                            <Border Background="{DynamicResource InputBrush}"
-                                                                    Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                                <Path Fill="{DynamicResource MutedTextBrush}" Stretch="Uniform" Width="32" Height="32"
-                                                                      Data="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
-                                                            </Border>
-                                                            <MediaElement Source="{Binding PreviewPath}" LoadedBehavior="Pause" ScrubbingEnabled="True" Position="00:00:01" Stretch="UniformToFill" 
-                                                                   Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" Fill="#64748b" Width="24" Height="24" Stretch="Uniform" Margin="0,0,0,8" HorizontalAlignment="Center"/>
+                                                                <Border Background="#1AFFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                                    <TextBlock Text="NO_SIGNAL" Foreground="#64748b" FontFamily="Consolas" FontSize="10"/>
+                                                                </Border>
+                                                            </StackPanel>
+                                                            <Image Source="{Binding PreviewPath, IsAsync=True}" Stretch="UniformToFill" Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
                                                         </Grid>
                                                     </Border>
-                                                    <Button DockPanel.Dock="Right"
-                                                            Content="Use"
-                                                            Style="{StaticResource SecondaryButtonStyle}"
-                                                            Command="{Binding DataContext.SelectLibraryItemCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                                            CommandParameter="{Binding}" />
-                                                    <Border DockPanel.Dock="Right"
-                                                            Margin="0,0,10,0"
-                                                            Padding="9,4"
-                                                            CornerRadius="10"
-                                                            Background="{DynamicResource AccentBrush}"
-                                                            VerticalAlignment="Center"
-                                                            Visibility="{Binding IsActiveWallpaper, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                        <TextBlock Text="ACTIVE"
-                                                                   Foreground="{DynamicResource AccentTextBrush}"
-                                                                   FontWeight="SemiBold"
-                                                                   FontSize="10" />
-                                                    </Border>
-                                                    <StackPanel VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                                                        <TextBlock Text="{Binding FilePath}" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                                                    
+                                                    <!-- INFO -->
+                                                    <StackPanel Grid.Row="1" Margin="12,14,12,0">
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6" Visibility="{Binding IsActiveWallpaper, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                            <Path Data="M7 2v11h3v9l7-12h-4l4-8z" Fill="#22d3ee" Width="8" Height="12" Stretch="Uniform" Margin="0,0,4,0"/>
+                                                            <TextBlock Text="CURRENTLY_LOADED" Foreground="#22d3ee" FontFamily="Consolas" FontSize="9" FontWeight="Bold"/>
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding DisplayName}" FontSize="14" FontWeight="Bold" Foreground="White" TextTrimming="CharacterEllipsis" Margin="0,0,0,8" />
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Border Background="#60000000" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="4" Padding="4,2" Margin="0,0,6,0">
+                                                                <TextBlock Text="PATH" Foreground="#64748b" FontFamily="Consolas" FontSize="9"/>
+                                                            </Border>
+                                                            <TextBlock Text="{Binding FilePath}" Foreground="#94a3b8" FontFamily="Consolas" FontSize="11" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                        </StackPanel>
                                                     </StackPanel>
-                                                </DockPanel>
+                                                    
+                                                    <!-- ACTION BUTTON -->
+                                                    <Border Grid.Row="2" Margin="12,0,12,12">
+                                                        <Grid>
+                                                            <Button Content="INITIALIZE" FontFamily="Consolas" FontWeight="Bold" FontSize="11" Cursor="Hand" Visibility="{Binding IsActiveWallpaper, Converter={StaticResource InverseBooleanToVisibilityConverter}}" Command="{Binding DataContext.SelectLibraryItemCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" CommandParameter="{Binding}">
+                                                                <Button.Style>
+                                                                    <Style TargetType="Button">
+                                                                        <Setter Property="Background" Value="#11FFFFFF"/>
+                                                                        <Setter Property="Foreground" Value="#cbd5e1"/>
+                                                                        <Setter Property="Padding" Value="0,10"/>
+                                                                        <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+                                                                        <Setter Property="BorderThickness" Value="1"/>
+                                                                        <Setter Property="Template">
+                                                                            <Setter.Value>
+                                                                                <ControlTemplate TargetType="Button">
+                                                                                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                                                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                                                                                    </Border>
+                                                                                </ControlTemplate>
+                                                                            </Setter.Value>
+                                                                        </Setter>
+                                                                        <Style.Triggers>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter Property="BorderBrush" Value="#22d3ee"/>
+                                                                                <Setter Property="Foreground" Value="#67e8f9"/>
+                                                                                <Setter Property="Background" Value="#1A0891B2"/>
+                                                                            </Trigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Button.Style>
+                                                            </Button>
+                                                            
+                                                            <!-- ACTIVE BADGE -->
+                                                            <Border Background="#1A06B6D4" BorderBrush="#4D06B6D4" BorderThickness="1" CornerRadius="6" Padding="0,10" Visibility="{Binding IsActiveWallpaper, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                                    <Path Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" Fill="#22d3ee" Width="14" Height="14" Stretch="Uniform" Margin="0,0,6,0"/>
+                                                                    <TextBlock Text="ACTIVE" Foreground="#22d3ee" FontFamily="Consolas" FontWeight="Bold" FontSize="11" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </Grid>
+                                                    </Border>
+                                                </Grid>
                                             </Border>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
-                            </Grid>
-                        </Border>
+                            </StackPanel>
+                        </ScrollViewer>
                     </Grid>
 
                     <ScrollViewer Visibility="{Binding SelectedPage, Converter={StaticResource PageVisibilityConverter}, ConverterParameter=Settings}">
