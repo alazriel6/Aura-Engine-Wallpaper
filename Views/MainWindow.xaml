@@ -29,7 +29,7 @@
             <Setter Property="BorderBrush" Value="Transparent" />
             <Style.Triggers>
                 <Trigger Property="Orientation" Value="Vertical">
-                    <Setter Property="Width" Value="8" />
+                    <Setter Property="Width" Value="4" />
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="ScrollBar">
@@ -51,7 +51,7 @@
                     </Setter>
                 </Trigger>
                 <Trigger Property="Orientation" Value="Horizontal">
-                    <Setter Property="Height" Value="8" />
+                    <Setter Property="Height" Value="4" />
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="ScrollBar">
@@ -392,7 +392,7 @@
                     <Grid Visibility="Collapsed"></Grid>
 
                     <Grid Visibility="{Binding SelectedPage, Converter={StaticResource PageVisibilityConverter}, ConverterParameter=Playlist}">
-                        <ScrollViewer Margin="30">
+                        <ScrollViewer Padding="30,30,10,30">
                             <StackPanel MaxWidth="1050">
                                 <!-- HEADER HUD -->
                                 <Grid Margin="0,0,0,25">
