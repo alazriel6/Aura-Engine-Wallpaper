@@ -24,6 +24,11 @@ public sealed class MemoryCleanupService : IDisposable
         return _inner.RunCleanupAsync(cancellationToken);
     }
 
+    public void TrimMemory()
+    {
+        _inner.TrimMemory();
+    }
+
     public void Dispose()
     {
         _inner.Dispose();

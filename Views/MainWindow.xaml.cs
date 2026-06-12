@@ -134,6 +134,13 @@ public partial class MainWindow : Window
 
         Hide();
         _trayService.ShowInfo("Live Wallpaper App", "Dashboard minimized to tray.");
+        
+        // Aggressively free RAM when the app goes into the background
+        Task.Run(async () => 
+        {
+            await Task.Delay(500); // Give UI time to hide
+            _memoryCleanupService.TrimMemory();
+        });
     }
 
     private void OnActivated(object? sender, EventArgs e)

@@ -44,6 +44,24 @@ public sealed class MemoryOptimizerService : IDisposable
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Optimized, blocking: false, compacting: true);
     }
 
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool SetProcessWorkingSetSize(IntPtr proc, int min, int max);
+
+    public void TrimMemory()
+    {
+        try
+        {
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            SetProcessWorkingSetSize(System.Diagnostics.Process.GetCurrentProcess().Handle, -1, -1);
+        }
+        catch
+        {
+            // Ignore if access is denied
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed)
