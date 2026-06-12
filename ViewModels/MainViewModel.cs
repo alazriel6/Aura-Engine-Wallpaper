@@ -105,6 +105,7 @@ public sealed class MainViewModel : ObservableObject
 
             VideoPath = preview.FilePath;
             preview.Wallpaper.LastUsedAt = DateTimeOffset.Now;
+            SaveLibraryBackground();
             SelectedPage = "Dashboard";
             CurrentStatus = $"Loaded {preview.DisplayName} from the library.";
         });
@@ -125,6 +126,7 @@ public sealed class MainViewModel : ObservableObject
             {
                 preview.IsFavorite = !preview.IsFavorite;
                 preview.Wallpaper.IsFavorite = preview.IsFavorite;
+                SaveLibraryBackground();
                 ApplyLibraryFilters();
             }
         });
@@ -447,6 +449,23 @@ public sealed class MainViewModel : ObservableObject
         {
             CurrentStatus = ex.Message;
         }
+    }
+
+    private void SaveLibraryBackground()
+    {
+        Task.Run(async () =>
+        {
+            try
+            {
+                var manifest = new WallpaperPackManifest { Name = "Local Library" };
+                foreach (var item in LibraryItems.Where(i => !string.Equals(i.Category, "Session", StringComparison.OrdinalIgnoreCase)))
+                {
+                    manifest.Wallpapers.Add(item);
+                }
+                await _libraryService.SaveAsync(manifest).ConfigureAwait(false);
+            }
+            catch { }
+        });
     }
 
     private async Task RefreshLibraryAsync()

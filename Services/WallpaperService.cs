@@ -229,11 +229,11 @@ public sealed class WallpaperService : IDisposable
         }
     }
 
-    public void Stop()
+    public void Stop(bool saveState = true)
     {
         if (!Application.Current.Dispatcher.CheckAccess())
         {
-            Application.Current.Dispatcher.Invoke(Stop);
+            Application.Current.Dispatcher.Invoke(() => Stop(saveState));
             return;
         }
 
@@ -241,6 +241,7 @@ public sealed class WallpaperService : IDisposable
         _wallpaperWindows.Clear();
         _isManualPaused = false;
         _isAutoPaused = false;
+        CurrentWallpaperPath = null;
 
         var libVlc = _sharedWallpaperLibVlc;
         _sharedWallpaperLibVlc = null;
@@ -254,7 +255,11 @@ public sealed class WallpaperService : IDisposable
             try { libVlc?.Dispose(); } catch { }
         });
 
-        SaveState();
+        if (saveState)
+        {
+            SaveState();
+        }
+        
         StatusChanged?.Invoke(this, "Wallpaper stopped.");
     }
 
@@ -265,7 +270,7 @@ public sealed class WallpaperService : IDisposable
             return;
         }
 
-        Stop();
+        Stop(saveState: false);
         _disposed = true;
     }
 
