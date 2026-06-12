@@ -204,8 +204,8 @@
                                     </ListBox.ItemsPanel>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Width="260"
-                                                    Height="192"
+                                            <Border Width="220"
+                                                    Height="172"
                                                     CornerRadius="14"
                                                     Background="{DynamicResource SoftPanelBrush}"
                                                     BorderBrush="{DynamicResource BorderBrush}"
@@ -232,7 +232,7 @@
                                                 </Border.Style>
                                                 <Grid>
                                                     <Grid.RowDefinitions>
-                                                        <RowDefinition Height="128" />
+                                                        <RowDefinition Height="114" />
                                                         <RowDefinition Height="*" />
                                                     </Grid.RowDefinitions>
                                                     <Border Grid.Row="0" CornerRadius="13,13,0,0" ClipToBounds="True">
