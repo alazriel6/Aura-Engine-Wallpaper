@@ -199,7 +199,7 @@
                                          VirtualizingPanel.VirtualizationMode="Recycling">
                                     <ListBox.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <VirtualizingStackPanel Margin="18,0,0,0" />
+                                            <WrapPanel Margin="18,0,0,0" />
                                         </ItemsPanelTemplate>
                                     </ListBox.ItemsPanel>
                                     <ListBox.ItemTemplate>
@@ -236,7 +236,12 @@
                                                         <RowDefinition Height="*" />
                                                     </Grid.RowDefinitions>
                                                     <Border Grid.Row="0" CornerRadius="13,13,0,0" ClipToBounds="True">
-                                                        <Image Source="{Binding PreviewPath, IsAsync=True}" Stretch="UniformToFill" />
+                                                        <Grid>
+                                                            <Image Source="{Binding PreviewPath, IsAsync=True}" Stretch="UniformToFill" 
+                                                                   Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                                                            <MediaElement Source="{Binding PreviewPath}" LoadedBehavior="Pause" ScrubbingEnabled="True" Position="00:00:01" Stretch="UniformToFill" 
+                                                                   Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                        </Grid>
                                                     </Border>
                                                     <Border Grid.Row="0"
                                                             HorizontalAlignment="Left"
@@ -357,7 +362,12 @@
                                                     BorderThickness="1">
                                                 <DockPanel LastChildFill="True">
                                                     <Border DockPanel.Dock="Left" Width="120" Height="68" Margin="0,0,14,0" CornerRadius="8" ClipToBounds="True">
-                                                        <Image Source="{Binding PreviewPath, IsAsync=True}" Stretch="UniformToFill" />
+                                                        <Grid>
+                                                            <Image Source="{Binding PreviewPath, IsAsync=True}" Stretch="UniformToFill" 
+                                                                   Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                                                            <MediaElement Source="{Binding PreviewPath}" LoadedBehavior="Pause" ScrubbingEnabled="True" Position="00:00:01" Stretch="UniformToFill" 
+                                                                   Visibility="{Binding UsesSourceAsPreviewFallback, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                        </Grid>
                                                     </Border>
                                                     <Button DockPanel.Dock="Right"
                                                             Content="Use"
