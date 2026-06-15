@@ -22,7 +22,7 @@ public sealed class GPUOptimizationService
     {
         var options = new List<string>
         {
-            "--input-repeat=65535",
+            settings.LoopWallpaper ? "--input-repeat=65535" : "",
             "--no-audio",
             "--no-video-title-show",
             "--no-mouse-events",

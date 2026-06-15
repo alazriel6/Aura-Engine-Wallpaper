@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private readonly PreviewRenderService _previewRenderService;
     private readonly MemoryCleanupService _memoryCleanupService;
     private readonly TrayService _trayService;
+    private readonly SettingsService _settingsService;
     private readonly PerformanceSettings _performanceSettings;
     private readonly MainViewModel _viewModel;
     private bool _isExiting;
@@ -34,7 +35,8 @@ public partial class MainWindow : Window
         _themeService = new ThemeService();
         _startupService = new StartupService();
         _gpuOptimizationService = new GPUOptimizationService();
-        _performanceSettings = new PerformanceSettings();
+        _settingsService = new SettingsService();
+        _performanceSettings = _settingsService.LoadSettings();
         _wallpaperService = new WallpaperService(_monitorService, _gpuOptimizationService);
         _libraryService = new WallpaperLibraryService();
         _thumbnailService = new ThumbnailService(_gpuOptimizationService);
@@ -82,10 +84,39 @@ public partial class MainWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (Environment.GetCommandLineArgs().Any(arg => string.Equals(arg, "--minimized", StringComparison.OrdinalIgnoreCase)))
+        var launchArgs = Environment.GetCommandLineArgs();
+        bool isArgMinimized = launchArgs.Any(arg => string.Equals(arg, "--minimized", StringComparison.OrdinalIgnoreCase));
+
+        if (isArgMinimized || _performanceSettings.StartMinimized)
         {
             WindowState = WindowState.Minimized;
-            Hide();
+            if (_performanceSettings.ShowTrayIcon)
+            {
+                _trayService.ShowInfo("Live Wallpaper App", "Running in the background.");
+            }
+            else
+            {
+                Hide();
+            }
+        }
+        
+        _trayService.SetVisibility(_performanceSettings.ShowTrayIcon);
+        _themeService.ApplyVisualEffects(_performanceSettings);
+
+        if (_performanceSettings.AutoRestoreWallpaper && !string.IsNullOrWhiteSpace(_performanceSettings.LastWallpaperPath))
+        {
+            _wallpaperService.ApplyWallpaper(_performanceSettings.LastWallpaperPath, null, _performanceSettings);
+            _viewModel.VideoPath = _performanceSettings.LastWallpaperPath;
+        }
+
+        _performanceSettings.PropertyChanged += OnPerformanceSettingsChanged;
+    }
+
+    private void OnPerformanceSettingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PerformanceSettings.ShowTrayIcon))
+        {
+            _trayService.SetVisibility(_performanceSettings.ShowTrayIcon);
         }
     }
 
@@ -132,8 +163,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        Hide();
-        _trayService.ShowInfo("Live Wallpaper App", "Dashboard minimized to tray.");
+        if (_performanceSettings.MinimizeToTray && _performanceSettings.ShowTrayIcon)
+        {
+            Hide();
+            _trayService.ShowInfo("Live Wallpaper App", "Dashboard minimized to tray.");
+        }
         
         // Aggressively free RAM when the app goes into the background
         Task.Run(async () => 
@@ -189,6 +223,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _settingsService.SaveSettings(_performanceSettings);
         StateChanged -= OnWindowStateChanged;
         Activated -= OnActivated;
         Deactivated -= OnDeactivated;

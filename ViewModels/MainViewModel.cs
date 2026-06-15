@@ -22,8 +22,6 @@ public sealed class MainViewModel : ObservableObject
 
     private string _selectedPage = "Dashboard";
     private string _videoPath = string.Empty;
-    private string _selectedTheme = "Minimal Dark";
-    private string _accentColorHex = "#33F5FF";
     private string _selectedMonitorDeviceName = "*";
     private string _currentStatus = "Ready";
     private string _searchText = string.Empty;
@@ -35,6 +33,7 @@ public sealed class MainViewModel : ObservableObject
     private SystemPerformanceSnapshot _performanceSnapshot = new();
     private AutoPauseState _autoPauseState = AutoPauseState.Active;
     private IReadOnlyList<string> _thumbnailVlcOptions = Array.Empty<string>();
+    private readonly System.Windows.Threading.DispatcherTimer _shuffleTimer;
 
     public MainViewModel(
         WallpaperService wallpaperService,
@@ -140,6 +139,15 @@ public sealed class MainViewModel : ObservableObject
         _autoPauseService.StateChanged += (_, state) => AutoPauseState = state;
 
         ThumbnailVlcOptions = _gpuOptimizationService.BuildThumbnailVlcArguments(Settings);
+        _shuffleTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMinutes(5)
+        };
+        _shuffleTimer.Tick += OnShuffleTimerTick;
+        if (Settings.AutoShuffle)
+        {
+            _shuffleTimer.Start();
+        }
         _previewRenderService.MaximumActivePreviews = Settings.ThumbnailMaxConcurrentPlayers;
         RefreshMonitors();
         _isStartupEnabled = _startupService.IsEnabled();
@@ -238,19 +246,17 @@ public sealed class MainViewModel : ObservableObject
 
     public string SelectedTheme
     {
-        get => _selectedTheme;
+        get => Settings.SelectedTheme;
         set
         {
-            if (!SetProperty(ref _selectedTheme, value))
-            {
-                return;
-            }
-
+            if (Settings.SelectedTheme == value) return;
+            Settings.SelectedTheme = value;
             try
             {
                 _themeService.ApplyTheme(value);
-                _themeService.ApplyAccentColor(AccentColorHex);
+                _themeService.ApplyAccentColor(Settings.AccentColorHex);
                 CurrentStatus = $"{value} theme applied.";
+                OnPropertyChanged();
             }
             catch (Exception ex)
             {
@@ -261,8 +267,13 @@ public sealed class MainViewModel : ObservableObject
 
     public string AccentColorHex
     {
-        get => _accentColorHex;
-        set => SetProperty(ref _accentColorHex, value);
+        get => Settings.AccentColorHex;
+        set
+        {
+            if (Settings.AccentColorHex == value) return;
+            Settings.AccentColorHex = value;
+            OnPropertyChanged();
+        }
     }
 
     public string SelectedMonitorDeviceName
@@ -661,6 +672,28 @@ public sealed class MainViewModel : ObservableObject
             _previewRenderService.MaximumActivePreviews = Settings.ThumbnailMaxConcurrentPlayers;
             PreviewRenderCoordinator.Shared.MaximumActivePreviews = Settings.ThumbnailMaxConcurrentPlayers;
         }
+
+        if (e.PropertyName is nameof(PerformanceSettings.BlurStrength)
+            or nameof(PerformanceSettings.GlowIntensity)
+            or nameof(PerformanceSettings.BorderRadius)
+            or nameof(PerformanceSettings.PanelOpacity))
+        {
+            _themeService.ApplyVisualEffects(Settings);
+        }
+
+        if (e.PropertyName == nameof(PerformanceSettings.AutoShuffle))
+        {
+            if (Settings.AutoShuffle) _shuffleTimer.Start();
+            else _shuffleTimer.Stop();
+        }
+    }
+
+    private void OnShuffleTimerTick(object? sender, EventArgs e)
+    {
+        if (!Settings.AutoShuffle || !LibraryItems.Any()) return;
+        var next = LibraryItems[Random.Shared.Next(LibraryItems.Count)];
+        VideoPath = next.FilePath;
+        ApplyCommand.Execute(null);
     }
 }
 

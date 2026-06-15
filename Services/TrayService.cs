@@ -23,6 +23,14 @@ public sealed class TrayService : IDisposable
         _trayIcon.TrayMouseDoubleClick += (_, _) => restoreDashboard();
     }
 
+    public void SetVisibility(bool isVisible)
+    {
+        if (_trayIcon != null)
+        {
+            _trayIcon.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
     public void ShowInfo(string title, string message)
     {
         _trayIcon?.ShowBalloonTip(title, message, BalloonIcon.Info);

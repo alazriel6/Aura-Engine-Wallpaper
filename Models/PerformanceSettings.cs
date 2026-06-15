@@ -52,6 +52,9 @@ public sealed class PerformanceSettings : ObservableObject
     private int _autoPauseCpuThreshold = 92;
     private int _autoPauseCpuTemperatureThreshold = 86;
     private int _idlePauseMinutes = 5;
+    private string? _lastWallpaperPath;
+    private string _selectedTheme = "Minimal Dark";
+    private string _accentColorHex = "#33F5FF";
 
     public WallpaperRenderEngine RenderEngine
     {
@@ -339,6 +342,24 @@ public sealed class PerformanceSettings : ObservableObject
     {
         get => _idlePauseMinutes;
         set => SetProperty(ref _idlePauseMinutes, Math.Clamp(value, 1, 120));
+    }
+
+    public string? LastWallpaperPath
+    {
+        get => _lastWallpaperPath;
+        set => SetProperty(ref _lastWallpaperPath, value);
+    }
+
+    public string SelectedTheme
+    {
+        get => _selectedTheme;
+        set => SetProperty(ref _selectedTheme, value);
+    }
+
+    public string AccentColorHex
+    {
+        get => _accentColorHex;
+        set => SetProperty(ref _accentColorHex, value);
     }
 
     public int EffectiveFps => FpsLimit switch

@@ -121,9 +121,9 @@
             BorderThickness="1">
         <Border.Effect>
             <DropShadowEffect Color="{DynamicResource ShadowColor}"
-                              BlurRadius="22"
+                              BlurRadius="{DynamicResource GlobalGlowRadius}"
                               ShadowDepth="0"
-                              Opacity="{Binding Settings.ShadowIntensity}" />
+                              Opacity="0.45" />
         </Border.Effect>
 
         <Grid>

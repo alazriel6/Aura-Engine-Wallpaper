@@ -60,6 +60,15 @@ public sealed class ThemeService
         CurrentTheme = themeName;
     }
 
+    public void ApplyVisualEffects(Models.PerformanceSettings settings)
+    {
+        var appResources = Application.Current.Resources;
+        appResources["GlobalBlurRadius"] = settings.BlurStrength;
+        appResources["GlobalGlowRadius"] = settings.GlowIntensity * 100.0;
+        appResources["GlobalCornerRadius"] = new CornerRadius(settings.BorderRadius);
+        appResources["GlobalPanelOpacity"] = settings.PanelOpacity;
+    }
+
     public void ApplyAccentColor(string colorHex)
     {
         if (string.IsNullOrWhiteSpace(colorHex))

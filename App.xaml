@@ -2,6 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:helpers="clr-namespace:LiveWallpaperApp.Helpers"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              StartupUri="Views/MainWindow.xaml"
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
@@ -9,6 +10,11 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/MinimalDarkTheme.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <sys:Double x:Key="GlobalBlurRadius">10</sys:Double>
+            <sys:Double x:Key="GlobalGlowRadius">26</sys:Double>
+            <sys:Double x:Key="GlobalPanelOpacity">0.72</sys:Double>
+            <CornerRadius x:Key="GlobalCornerRadius">18</CornerRadius>
 
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
             <helpers:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
@@ -122,7 +128,7 @@
                                     CornerRadius="12">
                                 <Border.Effect>
                                     <DropShadowEffect Color="{DynamicResource BorderGlowColor}"
-                                                      BlurRadius="18"
+                                                      BlurRadius="{DynamicResource GlobalGlowRadius}"
                                                       ShadowDepth="0"
                                                       Opacity="0.35" />
                                 </Border.Effect>
@@ -269,7 +275,7 @@
                                             TextElement.Foreground="{DynamicResource TextBrush}">
                                         <Border.Effect>
                                             <DropShadowEffect Color="{DynamicResource BorderGlowColor}"
-                                                              BlurRadius="18"
+                                                              BlurRadius="{DynamicResource GlobalGlowRadius}"
                                                               ShadowDepth="0"
                                                               Opacity="0.35" />
                                         </Border.Effect>

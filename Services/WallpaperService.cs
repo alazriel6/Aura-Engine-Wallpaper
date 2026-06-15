@@ -104,9 +104,12 @@ public sealed class WallpaperService : IDisposable
 
         if (!string.IsNullOrWhiteSpace(monitorDeviceName) && monitorDeviceName != "*")
         {
-            targetMonitors = targetMonitors
-                .Where(m => string.Equals(m.DeviceName, monitorDeviceName, StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            if (!settings.MultiMonitorSync)
+            {
+                targetMonitors = targetMonitors
+                    .Where(m => string.Equals(m.DeviceName, monitorDeviceName, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
         }
 
         Log($"ApplyWallpaper: targeting {targetMonitors.Count} monitor(s)");
