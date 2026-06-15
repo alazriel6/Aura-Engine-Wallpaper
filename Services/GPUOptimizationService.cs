@@ -33,8 +33,17 @@ public sealed class GPUOptimizationService
             $"--avcodec-threads={settings.DecodeThreadCount}",
             $"--file-caching={GetFileCacheMs(settings)}",
             $"--network-caching={GetNetworkCacheMs(settings)}",
+            $"--zoom={settings.RenderScale.ToString(System.Globalization.CultureInfo.InvariantCulture)}",
             ToHardwareDecodeOption(settings.HardwareAcceleration)
         };
+
+        var vout = settings.RenderEngine switch
+        {
+            WallpaperRenderEngine.DirectX => "--vout=direct3d11",
+            WallpaperRenderEngine.Vlc => "--vout=any",
+            _ => "--vout=any"
+        };
+        options.Add(vout);
 
         if (settings.PowerProfile is PowerProfileMode.BatterySaver or PowerProfileMode.MinimalResource)
         {
