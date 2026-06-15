@@ -422,13 +422,13 @@
                                 <Line X1="0" Y1="0" X2="1050" Y2="0" Stroke="#22FFFFFF" StrokeThickness="1" Margin="0,0,0,20"/>
 
                                 <!-- PLAYLIST GRID -->
-                                <ListBox ItemsSource="{Binding FilteredLibraryPreviews}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                    <ListBox.ItemsPanel>
+                                <ItemsControl ItemsSource="{Binding FilteredLibraryPreviews}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <WrapPanel />
                                         </ItemsPanelTemplate>
-                                    </ListBox.ItemsPanel>
-                                    <ListBox.ItemTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <!-- Card -->
                                             <Border Margin="10" Width="310" Height="280" CornerRadius="12" Background="#111625" BorderThickness="1">
@@ -480,7 +480,7 @@
                                                     <!-- ACTION BUTTON -->
                                                     <Border Grid.Row="2" Margin="12,0,12,12">
                                                         <Grid>
-                                                            <Button Content="INITIALIZE" FontFamily="Consolas" FontWeight="Bold" FontSize="11" Cursor="Hand" Visibility="{Binding IsActiveWallpaper, Converter={StaticResource InverseBooleanToVisibilityConverter}}" Command="{Binding DataContext.SelectLibraryItemCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" CommandParameter="{Binding}">
+                                                            <Button Content="INITIALIZE" FontFamily="Consolas" FontWeight="Bold" FontSize="11" Cursor="Hand" Visibility="{Binding IsActiveWallpaper, Converter={StaticResource InverseBooleanToVisibilityConverter}}" Command="{Binding DataContext.SelectLibraryItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
                                                                 <Button.Style>
                                                                     <Style TargetType="Button">
                                                                         <Setter Property="Background" Value="#11FFFFFF"/>
@@ -520,8 +520,8 @@
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>
