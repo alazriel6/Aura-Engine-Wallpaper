@@ -22,6 +22,7 @@
         TextElement.Foreground="{DynamicResource TextBrush}">
     <Window.Resources>
         <helpers:PageVisibilityConverter x:Key="PageVisibilityConverter" />
+        <helpers:StringMatchToBooleanConverter x:Key="StringMatchToBooleanConverter" />
 
         <!-- SLEEK SCROLLBAR STYLE -->
         <Style TargetType="ScrollBar">
@@ -176,15 +177,15 @@
                     <DockPanel LastChildFill="True">
                         <StackPanel DockPanel.Dock="Top">
                             <TextBlock Text="MENU" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="4,0,0,12" />
-                            <Button Content="Home" Style="{StaticResource NavButtonStyle}" Command="{Binding SelectPageCommand}" CommandParameter="Dashboard" />
-                            <Button Content="Playlist" Style="{StaticResource NavButtonStyle}" Command="{Binding SelectPageCommand}" CommandParameter="Playlist" />
-                            <Button Content="Settings" Style="{StaticResource NavButtonStyle}" Command="{Binding SelectPageCommand}" CommandParameter="Settings" />
-                            <Button Content="Performance" Style="{StaticResource NavButtonStyle}" Command="{Binding SelectPageCommand}" CommandParameter="Performance" />
-                            <Button Content="Advanced" Style="{StaticResource NavButtonStyle}" Command="{Binding SelectPageCommand}" CommandParameter="Advanced" />
-                            <Button Content="Monitors" Style="{StaticResource NavButtonStyle}" Command="{Binding SelectPageCommand}" CommandParameter="Monitors" />
-                            <Button Content="Themes" Style="{StaticResource NavButtonStyle}" Command="{Binding SelectPageCommand}" CommandParameter="Themes" />
-                            <Button Content="Marketplace" Style="{StaticResource NavButtonStyle}" Command="{Binding SelectPageCommand}" CommandParameter="Marketplace" />
-                            <Button Content="About" Style="{StaticResource NavButtonStyle}" Command="{Binding SelectPageCommand}" CommandParameter="About" />
+                            <RadioButton Content="Home" Style="{StaticResource NavRadioButtonStyle}" IsChecked="{Binding SelectedPage, Converter={StaticResource StringMatchToBooleanConverter}, ConverterParameter=Dashboard}" Command="{Binding SelectPageCommand}" CommandParameter="Dashboard" />
+                            <RadioButton Content="Playlist" Style="{StaticResource NavRadioButtonStyle}" IsChecked="{Binding SelectedPage, Converter={StaticResource StringMatchToBooleanConverter}, ConverterParameter=Playlist}" Command="{Binding SelectPageCommand}" CommandParameter="Playlist" />
+                            <RadioButton Content="Settings" Style="{StaticResource NavRadioButtonStyle}" IsChecked="{Binding SelectedPage, Converter={StaticResource StringMatchToBooleanConverter}, ConverterParameter=Settings}" Command="{Binding SelectPageCommand}" CommandParameter="Settings" />
+                            <RadioButton Content="Performance" Style="{StaticResource NavRadioButtonStyle}" IsChecked="{Binding SelectedPage, Converter={StaticResource StringMatchToBooleanConverter}, ConverterParameter=Performance}" Command="{Binding SelectPageCommand}" CommandParameter="Performance" />
+                            <RadioButton Content="Advanced" Style="{StaticResource NavRadioButtonStyle}" IsChecked="{Binding SelectedPage, Converter={StaticResource StringMatchToBooleanConverter}, ConverterParameter=Advanced}" Command="{Binding SelectPageCommand}" CommandParameter="Advanced" />
+                            <RadioButton Content="Monitors" Style="{StaticResource NavRadioButtonStyle}" IsChecked="{Binding SelectedPage, Converter={StaticResource StringMatchToBooleanConverter}, ConverterParameter=Monitors}" Command="{Binding SelectPageCommand}" CommandParameter="Monitors" />
+                            <RadioButton Content="Themes" Style="{StaticResource NavRadioButtonStyle}" IsChecked="{Binding SelectedPage, Converter={StaticResource StringMatchToBooleanConverter}, ConverterParameter=Themes}" Command="{Binding SelectPageCommand}" CommandParameter="Themes" />
+                            <RadioButton Content="Marketplace" Style="{StaticResource NavRadioButtonStyle}" IsChecked="{Binding SelectedPage, Converter={StaticResource StringMatchToBooleanConverter}, ConverterParameter=Marketplace}" Command="{Binding SelectPageCommand}" CommandParameter="Marketplace" />
+                            <RadioButton Content="About" Style="{StaticResource NavRadioButtonStyle}" IsChecked="{Binding SelectedPage, Converter={StaticResource StringMatchToBooleanConverter}, ConverterParameter=About}" Command="{Binding SelectPageCommand}" CommandParameter="About" />
                         </StackPanel>
 
                         <Border DockPanel.Dock="Bottom"
