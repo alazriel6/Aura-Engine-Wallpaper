@@ -37,11 +37,18 @@ public sealed class MemoryOptimizerService : IDisposable
         await _thumbnailService.PurgeCacheIfNeededAsync(_settings.ThumbnailCacheLimitMb, cancellationToken)
             .ConfigureAwait(false);
 
-        // WPF + VLC both hold unmanaged allocations. Forcing collections constantly would
-        // cause stutter, so cleanup is periodic and only compacts the managed heap after
-        // preview cache pruning has reduced pressure.
-        GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-        GC.Collect(GC.MaxGeneration, GCCollectionMode.Optimized, blocking: false, compacting: true);
+        if (_settings.MemorySaverEnabled)
+        {
+            TrimMemory();
+        }
+        else
+        {
+            // WPF + VLC both hold unmanaged allocations. Forcing collections constantly would
+            // cause stutter, so cleanup is periodic and only compacts the managed heap after
+            // preview cache pruning has reduced pressure.
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Optimized, blocking: false, compacting: true);
+        }
     }
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]
