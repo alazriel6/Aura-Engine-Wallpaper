@@ -82,10 +82,22 @@
                                     Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="12">
-                                <ContentPresenter Margin="{TemplateBinding Padding}"
-                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                  VerticalAlignment="Center" />
+                                    CornerRadius="12"
+                                    ClipToBounds="True">
+                                <Grid>
+                                    <Border x:Name="SelectionIndicator" Width="3" HorizontalAlignment="Left" Background="{DynamicResource AccentBrush}" CornerRadius="1.5" Margin="0,10,0,10" RenderTransformOrigin="0.5,0.5">
+                                        <Border.RenderTransform>
+                                            <ScaleTransform x:Name="IndicatorScale" ScaleY="0" />
+                                        </Border.RenderTransform>
+                                    </Border>
+                                    <ContentPresenter x:Name="Content" Margin="{TemplateBinding Padding}"
+                                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                      VerticalAlignment="Center">
+                                        <ContentPresenter.RenderTransform>
+                                            <TranslateTransform x:Name="ContentTranslate" X="0" />
+                                        </ContentPresenter.RenderTransform>
+                                    </ContentPresenter>
+                                </Grid>
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
@@ -100,7 +112,43 @@
                                     <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource BorderGlowBrush}" />
                                     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
                                     <Setter Property="FontWeight" Value="SemiBold" />
+                                    <Trigger.EnterActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="IndicatorScale" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.2">
+                                                    <DoubleAnimation.EasingFunction><CircleEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.EnterActions>
+                                    <Trigger.ExitActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="IndicatorScale" Storyboard.TargetProperty="ScaleY" To="0" Duration="0:0:0.2">
+                                                    <DoubleAnimation.EasingFunction><CircleEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.ExitActions>
                                 </Trigger>
+                                <EventTrigger RoutedEvent="MouseEnter">
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="ContentTranslate" Storyboard.TargetProperty="X" To="6" Duration="0:0:0.2">
+                                                <DoubleAnimation.EasingFunction><CircleEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
+                                <EventTrigger RoutedEvent="MouseLeave">
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="ContentTranslate" Storyboard.TargetProperty="X" To="0" Duration="0:0:0.3">
+                                                <DoubleAnimation.EasingFunction><CircleEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
@@ -117,35 +165,137 @@
                 <Setter Property="BorderThickness" Value="1" />
                 <Setter Property="Cursor" Value="Hand" />
                 <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="ContentTemplate">
+                    <Setter.Value>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" Foreground="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource AncestorType=ContentPresenter}}" />
+                        </DataTemplate>
+                    </Setter.Value>
+                </Setter>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="Root"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    TextElement.Foreground="{TemplateBinding Foreground}"
-                                    CornerRadius="12">
-                                <Border.Effect>
-                                    <DropShadowEffect Color="{DynamicResource BorderGlowColor}"
-                                                      BlurRadius="{DynamicResource GlobalGlowRadius}"
-                                                      ShadowDepth="0"
-                                                      Opacity="0.35" />
-                                </Border.Effect>
-                                <ContentPresenter HorizontalAlignment="Center"
-                                                  VerticalAlignment="Center"
-                                                  Margin="{TemplateBinding Padding}" />
-                            </Border>
+                            <Grid x:Name="ButtonRoot" RenderTransformOrigin="0.5,0.5">
+                                <Grid.RenderTransform>
+                                    <ScaleTransform x:Name="ButtonScale" ScaleX="1" ScaleY="1" />
+                                </Grid.RenderTransform>
+                                <!-- Subtle Elevation Shadow -->
+                                <Border Background="{TemplateBinding Background}" CornerRadius="12">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="1.5" Opacity="0.15" Direction="270" />
+                                    </Border.Effect>
+                                </Border>
+
+                                <!-- Main Element -->
+                                <Border x:Name="Root"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="12">
+                                    <Grid>
+                                        <!-- Interaction Overlays -->
+                                        <Border x:Name="HoverOverlay" Background="White" Opacity="0" CornerRadius="11" />
+                                        <Border x:Name="PressedOverlay" Background="Black" Opacity="0" CornerRadius="11" />
+                                        
+                                        <ContentPresenter HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"
+                                                          Margin="{TemplateBinding Padding}" />
+                                    </Grid>
+                                </Border>
+                                <!-- Animated Multi-Color Plasma Aura (Drawn exactly over the border) -->
+                                <Grid x:Name="AnimatedBorder" Opacity="0" IsHitTestVisible="False">
+                                    <!-- Base static glow ring -->
+                                    <Border CornerRadius="12" BorderThickness="1.5" BorderBrush="#556366f1">
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="#4f46e5" BlurRadius="6" ShadowDepth="0" Opacity="0.6" />
+                                        </Border.Effect>
+                                    </Border>
+
+                                    <!-- Clockwise Arc (Cyan Plasma) -->
+                                    <Border CornerRadius="12" BorderThickness="1.5">
+                                        <Border.BorderBrush>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <LinearGradientBrush.RelativeTransform>
+                                                    <RotateTransform x:Name="BorderRotate1" CenterX="0.5" CenterY="0.5" Angle="0"/>
+                                                </LinearGradientBrush.RelativeTransform>
+                                                <GradientStop Color="#FFFFFF" Offset="0.0"/>
+                                                <GradientStop Color="{DynamicResource AccentColor}" Offset="0.1"/>
+                                                <GradientStop Color="Transparent" Offset="0.3"/>
+                                                <GradientStop Color="Transparent" Offset="0.7"/>
+                                                <GradientStop Color="{DynamicResource AccentColor}" Offset="0.9"/>
+                                                <GradientStop Color="#FFFFFF" Offset="1.0"/>
+                                            </LinearGradientBrush>
+                                        </Border.BorderBrush>
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="{DynamicResource AccentColor}" BlurRadius="6" ShadowDepth="0" Opacity="1" />
+                                        </Border.Effect>
+                                    </Border>
+
+                                    <!-- Counter-Clockwise Arc (Orange Plasma) -->
+                                    <Border CornerRadius="12" BorderThickness="1.5">
+                                        <Border.BorderBrush>
+                                            <LinearGradientBrush StartPoint="1,0" EndPoint="0,1">
+                                                <LinearGradientBrush.RelativeTransform>
+                                                    <RotateTransform x:Name="BorderRotate2" CenterX="0.5" CenterY="0.5" Angle="180"/>
+                                                </LinearGradientBrush.RelativeTransform>
+                                                <GradientStop Color="#FFFFFF" Offset="0.0"/>
+                                                <GradientStop Color="{DynamicResource BorderGlowColor}" Offset="0.1"/>
+                                                <GradientStop Color="Transparent" Offset="0.3"/>
+                                                <GradientStop Color="Transparent" Offset="0.7"/>
+                                                <GradientStop Color="{DynamicResource BorderGlowColor}" Offset="0.9"/>
+                                                <GradientStop Color="#FFFFFF" Offset="1.0"/>
+                                            </LinearGradientBrush>
+                                        </Border.BorderBrush>
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="{DynamicResource BorderGlowColor}" BlurRadius="6" ShadowDepth="0" Opacity="1" />
+                                        </Border.Effect>
+                                    </Border>
+                                </Grid>
+                            </Grid>
                             <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Root" Property="Opacity" Value="0.9" />
-                                </Trigger>
+                                <EventTrigger RoutedEvent="MouseEnter">
+                                    <BeginStoryboard x:Name="PlasmaAnimation">
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HoverOverlay" Storyboard.TargetProperty="Opacity" To="0.05" Duration="0:0:0.1" />
+                                            <DoubleAnimation Storyboard.TargetName="AnimatedBorder" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.15" />
+                                            
+                                            <!-- Smooth Plasma Rotation -->
+                                            <DoubleAnimation Storyboard.TargetName="BorderRotate1" Storyboard.TargetProperty="Angle" By="360" Duration="0:0:2.5" RepeatBehavior="Forever" />
+                                            <DoubleAnimation Storyboard.TargetName="BorderRotate2" Storyboard.TargetProperty="Angle" By="-360" Duration="0:0:3.5" RepeatBehavior="Forever" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
+                                <EventTrigger RoutedEvent="MouseLeave">
+                                    <RemoveStoryboard BeginStoryboardName="PlasmaAnimation" />
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="HoverOverlay" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.25" />
+                                            <DoubleAnimation Storyboard.TargetName="AnimatedBorder" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.25" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="Root" Property="RenderTransform">
-                                        <Setter.Value>
-                                            <ScaleTransform ScaleX="0.98" ScaleY="0.98" />
-                                        </Setter.Value>
-                                    </Setter>
+                                    <Setter TargetName="PressedOverlay" Property="Opacity" Value="0.15" />
+                                    <Trigger.EnterActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="ButtonScale" Storyboard.TargetProperty="ScaleX" To="0.96" Duration="0:0:0.05" />
+                                                <DoubleAnimation Storyboard.TargetName="ButtonScale" Storyboard.TargetProperty="ScaleY" To="0.96" Duration="0:0:0.05" />
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.EnterActions>
+                                    <Trigger.ExitActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="ButtonScale" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.15">
+                                                    <DoubleAnimation.EasingFunction><CircleEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                                <DoubleAnimation Storyboard.TargetName="ButtonScale" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.15">
+                                                    <DoubleAnimation.EasingFunction><CircleEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.ExitActions>
                                 </Trigger>
                                 <Trigger Property="IsEnabled" Value="False">
                                     <Setter TargetName="Root" Property="Opacity" Value="0.45" />
@@ -233,30 +383,44 @@
                                               Focusable="False"
                                               IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
                                               ClickMode="Press"
-                                              Background="Transparent"
-                                              BorderBrush="Transparent">
-                                    <Border x:Name="Chrome"
-                                            Background="{TemplateBinding Background}"
-                                            BorderBrush="{TemplateBinding BorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="10">
-                                        <Grid>
-                                            <ContentPresenter Margin="{TemplateBinding Padding}"
-                                                              Content="{TemplateBinding SelectionBoxItem}"
-                                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
-                                                              VerticalAlignment="Center"
-                                                              HorizontalAlignment="Left" />
-                                            <Path Data="M 0 0 L 4 4 L 8 0 Z"
-                                                  Fill="{DynamicResource MutedTextBrush}"
-                                                  Width="8"
-                                                  Height="4"
-                                                  Stretch="Fill"
-                                                  HorizontalAlignment="Right"
-                                                  VerticalAlignment="Center"
-                                                  Margin="0,0,12,0" />
-                                        </Grid>
-                                    </Border>
+                                              Background="{TemplateBinding Background}"
+                                              BorderBrush="{TemplateBinding BorderBrush}">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border x:Name="Chrome"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="10">
+                                                <Grid>
+                                                    <ContentPresenter Margin="{Binding Padding, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                      Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                      ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                      ContentStringFormat="{Binding SelectionBoxItemStringFormat, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                      VerticalAlignment="Center"
+                                                                      HorizontalAlignment="Left" />
+                                                    <Path Data="M 0 0 L 4 4 L 8 0 Z"
+                                                          Fill="{DynamicResource MutedTextBrush}"
+                                                          Width="8"
+                                                          Height="4"
+                                                          Stretch="Fill"
+                                                          HorizontalAlignment="Right"
+                                                          VerticalAlignment="Center"
+                                                          Margin="0,0,12,0" />
+                                                </Grid>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource HoverPanelBrush}" />
+                                                    <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource BorderGlowBrush}" />
+                                                </Trigger>
+                                                <Trigger Property="IsChecked" Value="True">
+                                                    <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SoftPanelBrush}" />
+                                                    <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
                                 </ToggleButton>
 
                                 <Popup x:Name="PART_Popup"
@@ -268,7 +432,7 @@
                                     <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
                                             Margin="0,8,0,0"
                                             Padding="6"
-                                            Background="{DynamicResource PanelBrush}"
+                                            Background="{DynamicResource BackgroundBrush}"
                                             BorderBrush="{DynamicResource BorderGlowBrush}"
                                             BorderThickness="1"
                                             CornerRadius="12"
@@ -286,12 +450,7 @@
                                 </Popup>
                             </Grid>
                             <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource BorderGlowBrush}" />
-                                </Trigger>
-                                <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                                    <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                                </Trigger>
+                                <!-- Toggle triggers handle styling now -->
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
@@ -342,19 +501,113 @@
             <Style TargetType="Slider">
                 <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
                 <Setter Property="Background" Value="{DynamicResource InputBrush}" />
-                <Setter Property="Margin" Value="0,2,0,4" />
+                <Setter Property="Margin" Value="0,6" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Slider">
+                            <Grid Height="24">
+                                <Border Height="6" CornerRadius="3" Background="{TemplateBinding Background}" VerticalAlignment="Center" />
+                                <Track x:Name="PART_Track">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Command="{x:Static Slider.DecreaseLarge}" Background="{TemplateBinding Foreground}">
+                                            <RepeatButton.Template>
+                                                <ControlTemplate TargetType="RepeatButton">
+                                                    <Border Height="6" CornerRadius="3" Background="{TemplateBinding Background}" VerticalAlignment="Center" />
+                                                </ControlTemplate>
+                                            </RepeatButton.Template>
+                                        </RepeatButton>
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Command="{x:Static Slider.IncreaseLarge}">
+                                            <RepeatButton.Template>
+                                                <ControlTemplate TargetType="RepeatButton">
+                                                    <Border Background="Transparent" />
+                                                </ControlTemplate>
+                                            </RepeatButton.Template>
+                                        </RepeatButton>
+                                    </Track.IncreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb>
+                                            <Thumb.Template>
+                                                <ControlTemplate TargetType="Thumb">
+                                                    <Border x:Name="ThumbBorder" Width="16" Height="16" CornerRadius="8" Background="White" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" RenderTransformOrigin="0.5,0.5">
+                                                        <Border.RenderTransform>
+                                                            <ScaleTransform x:Name="ThumbScale" ScaleX="1" ScaleY="1" />
+                                                        </Border.RenderTransform>
+                                                        <Border.Effect>
+                                                            <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="1" Opacity="0.3" />
+                                                        </Border.Effect>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="ThumbBorder" Property="Background" Value="{DynamicResource TextBrush}" />
+                                                            <Trigger.EnterActions>
+                                                                <BeginStoryboard>
+                                                                    <Storyboard>
+                                                                        <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleX" To="1.25" Duration="0:0:0.15"><DoubleAnimation.EasingFunction><CircleEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation>
+                                                                        <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleY" To="1.25" Duration="0:0:0.15"><DoubleAnimation.EasingFunction><CircleEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </Trigger.EnterActions>
+                                                            <Trigger.ExitActions>
+                                                                <BeginStoryboard>
+                                                                    <Storyboard>
+                                                                        <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.25"><DoubleAnimation.EasingFunction><CircleEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation>
+                                                                        <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.25"><DoubleAnimation.EasingFunction><CircleEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </Trigger.ExitActions>
+                                                        </Trigger>
+                                                        <Trigger Property="IsDragging" Value="True">
+                                                            <Setter TargetName="ThumbBorder" Property="Background" Value="{DynamicResource AccentBrush}" />
+                                                            <Setter TargetName="ThumbBorder" Property="BorderBrush" Value="Transparent" />
+                                                            <Trigger.EnterActions>
+                                                                <BeginStoryboard>
+                                                                    <Storyboard>
+                                                                        <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleX" To="0.9" Duration="0:0:0.1" />
+                                                                        <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleY" To="0.9" Duration="0:0:0.1" />
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </Trigger.EnterActions>
+                                                            <Trigger.ExitActions>
+                                                                <BeginStoryboard>
+                                                                    <Storyboard>
+                                                                        <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleX" To="1.25" Duration="0:0:0.2"><DoubleAnimation.EasingFunction><CircleEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation>
+                                                                        <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleY" To="1.25" Duration="0:0:0.2"><DoubleAnimation.EasingFunction><CircleEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction></DoubleAnimation>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </Trigger.ExitActions>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Thumb.Template>
+                                        </Thumb>
+                                    </Track.Thumb>
+                                </Track>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
 
             <Style TargetType="ProgressBar">
                 <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
                 <Setter Property="Background" Value="{DynamicResource InputBrush}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
                 <Setter Property="BorderThickness" Value="0" />
-            </Style>
-
-            <Style TargetType="ScrollBar">
-                <Setter Property="Background" Value="{DynamicResource InputBrush}" />
-                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="Height" Value="6" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ProgressBar">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="3">
+                                <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="3">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="{DynamicResource BorderGlowColor}" BlurRadius="8" ShadowDepth="0" Opacity="0.6" />
+                                    </Border.Effect>
+                                </Border>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
 
             <Style TargetType="TextBlock">

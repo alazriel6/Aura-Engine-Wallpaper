@@ -27,7 +27,10 @@ public sealed class ThemeService
         "Deep Space",
         "Purple Synthwave",
         "Minimal Dark",
-        "Glass Transparent"
+        "Glass Transparent",
+        "Dark",
+        "Neon",
+        "Purple"
     ];
 
     public string CurrentTheme { get; private set; } = "Dark";
@@ -45,8 +48,7 @@ public sealed class ThemeService
         for (var i = dictionaries.Count - 1; i >= 0; i--)
         {
             var source = dictionaries[i].Source?.OriginalString ?? string.Empty;
-            if (source.Contains("/Themes/", StringComparison.OrdinalIgnoreCase)
-                || source.StartsWith("Themes/", StringComparison.OrdinalIgnoreCase))
+            if (source.IndexOf("Theme.xaml", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 dictionaries.RemoveAt(i);
             }
@@ -54,7 +56,7 @@ public sealed class ThemeService
 
         dictionaries.Add(new ResourceDictionary
         {
-            Source = new Uri($"/Themes/{themeFile}", UriKind.Relative)
+            Source = new Uri($"pack://application:,,,/LiveWallpaperApp;component/Themes/{themeFile}", UriKind.Absolute)
         });
 
         CurrentTheme = themeName;

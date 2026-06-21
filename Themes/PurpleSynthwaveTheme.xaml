@@ -3,14 +3,33 @@
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="DarkTheme.xaml" />
     </ResourceDictionary.MergedDictionaries>
-    <Color x:Key="AccentColor">#FF4FD8</Color>
-    <Color x:Key="BorderGlowColor">#FF4FD8</Color>
+    
+    <Color x:Key="AccentColor">#FF00A0</Color>
+    <Color x:Key="BorderGlowColor">#00E5FF</Color>
+    <Color x:Key="ShadowColor">#1A001A</Color>
+
     <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource AccentColor}" />
-    <SolidColorBrush x:Key="AccentTextBrush" Color="#160314" />
-    <SolidColorBrush x:Key="TextBrush" Color="#FFF7FD" />
-    <SolidColorBrush x:Key="MutedTextBrush" Color="#BCA7C6" />
-    <SolidColorBrush x:Key="PanelBrush" Color="#B0180D23" />
-    <SolidColorBrush x:Key="SoftPanelBrush" Color="#652A1838" />
-    <SolidColorBrush x:Key="BorderGlowBrush" Color="#99FF4FD8" />
-    <SolidColorBrush x:Key="PreviewOverlayBrush" Color="#B0130717" />
+    <SolidColorBrush x:Key="AccentTextBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="BackgroundBrush" Color="#150821" />
+    <SolidColorBrush x:Key="TextBrush" Color="#FFE8F7" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="#B894C2" />
+    <SolidColorBrush x:Key="PanelBrush" Color="#992A1342" />
+    <SolidColorBrush x:Key="SoftPanelBrush" Color="#771F0F30" />
+    <SolidColorBrush x:Key="HoverPanelBrush" Color="#883B195C" />
+    <SolidColorBrush x:Key="SidebarBrush" Color="#AA0E0517" />
+    <SolidColorBrush x:Key="InputBrush" Color="#881B092B" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#66FF00A0" />
+    <SolidColorBrush x:Key="BorderGlowBrush" Color="#8800E5FF" />
+    <SolidColorBrush x:Key="SelectionBrush" Color="#55FF00A0" />
+    <SolidColorBrush x:Key="StatusBarBrush" Color="#CC09030F" />
+    <SolidColorBrush x:Key="WindowGlassBrush" Color="#E5150821" />
+    <SolidColorBrush x:Key="PreviewOverlayBrush" Color="#CC0A0412" />
+    <SolidColorBrush x:Key="WindowBgBrush" Color="#150821" />
+    <SolidColorBrush x:Key="WindowTitleBrush" Color="#0E0517" />
+
+    <LinearGradientBrush x:Key="PreviewGradientBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#420D3C" Offset="0" />
+        <GradientStop Color="#161A42" Offset="0.5" />
+        <GradientStop Color="#541B12" Offset="1" />
+    </LinearGradientBrush>
 </ResourceDictionary>

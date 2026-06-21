@@ -3,11 +3,33 @@
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="DarkTheme.xaml" />
     </ResourceDictionary.MergedDictionaries>
+    
     <Color x:Key="AccentColor">#33F5FF</Color>
     <Color x:Key="BorderGlowColor">#33F5FF</Color>
+    <Color x:Key="ShadowColor">#000000</Color>
+
     <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="AccentTextBrush" Color="#071116" />
+    <SolidColorBrush x:Key="BackgroundBrush" Color="#0F131A" />
+    <SolidColorBrush x:Key="TextBrush" Color="#E5EDF2" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="#8CA1B3" />
+    <SolidColorBrush x:Key="PanelBrush" Color="#EE1A2230" />
+    <SolidColorBrush x:Key="SoftPanelBrush" Color="#AA253042" />
+    <SolidColorBrush x:Key="HoverPanelBrush" Color="#CC324255" />
+    <SolidColorBrush x:Key="SidebarBrush" Color="#F20B0E14" />
+    <SolidColorBrush x:Key="InputBrush" Color="#99111620" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#663A4D63" />
     <SolidColorBrush x:Key="BorderGlowBrush" Color="#8833F5FF" />
-    <SolidColorBrush x:Key="PanelBrush" Color="#A6121620" />
-    <SolidColorBrush x:Key="SoftPanelBrush" Color="#551A2230" />
-    <SolidColorBrush x:Key="PreviewOverlayBrush" Color="#B0070B10" />
+    <SolidColorBrush x:Key="SelectionBrush" Color="#4433F5FF" />
+    <SolidColorBrush x:Key="StatusBarBrush" Color="#EE090B0F" />
+    <SolidColorBrush x:Key="WindowGlassBrush" Color="#E50F131A" />
+    <SolidColorBrush x:Key="PreviewOverlayBrush" Color="#B007090D" />
+    <SolidColorBrush x:Key="WindowBgBrush" Color="#0F131A" />
+    <SolidColorBrush x:Key="WindowTitleBrush" Color="#0B0E13" />
+
+    <LinearGradientBrush x:Key="PreviewGradientBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#1A2838" Offset="0" />
+        <GradientStop Color="#111B26" Offset="0.5" />
+        <GradientStop Color="#25354A" Offset="1" />
+    </LinearGradientBrush>
 </ResourceDictionary>

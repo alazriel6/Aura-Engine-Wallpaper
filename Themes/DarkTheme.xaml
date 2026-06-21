@@ -20,6 +20,8 @@
     <SolidColorBrush x:Key="StatusBarBrush" Color="#7A090D13" />
     <SolidColorBrush x:Key="WindowGlassBrush" Color="#D00B1017" />
     <SolidColorBrush x:Key="PreviewOverlayBrush" Color="#B0070B10" />
+    <SolidColorBrush x:Key="WindowBgBrush" Color="#1E1E1E" />
+    <SolidColorBrush x:Key="WindowTitleBrush" Color="#1E1E1E" />
 
     <LinearGradientBrush x:Key="PreviewGradientBrush" StartPoint="0,0" EndPoint="1,1">
         <GradientStop Color="#202B3A" Offset="0" />
