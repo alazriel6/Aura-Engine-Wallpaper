@@ -19,6 +19,8 @@ public sealed class MainViewModel : ObservableObject
     private readonly AutoPauseService _autoPauseService;
     private readonly GPUOptimizationService _gpuOptimizationService;
     private readonly PreviewRenderService _previewRenderService;
+    private readonly MemoryOptimizerService _memoryOptimizerService;
+    private readonly DownloadService _downloadService = new();
 
     private string _selectedPage = "Dashboard";
     private string _videoPath = string.Empty;
@@ -46,6 +48,7 @@ public sealed class MainViewModel : ObservableObject
         AutoPauseService autoPauseService,
         GPUOptimizationService gpuOptimizationService,
         PreviewRenderService previewRenderService,
+        MemoryOptimizerService memoryOptimizerService,
         PerformanceSettings settings)
     {
         _wallpaperService = wallpaperService;
@@ -58,10 +61,28 @@ public sealed class MainViewModel : ObservableObject
         _autoPauseService = autoPauseService;
         _gpuOptimizationService = gpuOptimizationService;
         _previewRenderService = previewRenderService;
+        _memoryOptimizerService = memoryOptimizerService;
         Settings = settings;
 
         AvailableThemes = new ObservableCollection<string>(_themeService.AvailableThemes);
+        ThemeSwatches = new ObservableCollection<ThemeSwatchViewModel>
+        {
+            new ThemeSwatchViewModel("#00e5ff", "Cyberpunk Cyan", hex => AccentColorHex = hex),
+            new ThemeSwatchViewModel("#ff003c", "Neon Red", hex => AccentColorHex = hex),
+            new ThemeSwatchViewModel("#bc13fe", "Midnight Purple", hex => AccentColorHex = hex),
+            new ThemeSwatchViewModel("#39ff14", "Toxic Green", hex => AccentColorHex = hex),
+            new ThemeSwatchViewModel("#ff9900", "Sunset Orange", hex => AccentColorHex = hex),
+            new ThemeSwatchViewModel("#f0f0f0", "Ghost White", hex => AccentColorHex = hex)
+        };
         MonitorSelections = new ObservableCollection<MonitorSelection>();
+        MonitorCards = new ObservableCollection<MonitorCardViewModel>();
+        MarketplaceItems = new ObservableCollection<MarketplaceItem>
+        {
+            new MarketplaceItem { Title = "Cyber City Loop", Description = "A 4K futuristic neon city loop", VideoUrl = "https://cdn.pixabay.com/video/2021/08/04/83861-584733076_large.mp4", ThumbnailUrl = "https://cdn.pixabay.com/video/2021/08/04/83861-584733076_large.jpg" },
+            new MarketplaceItem { Title = "Synthwave Grid", Description = "Retro 80s grid loop", VideoUrl = "https://cdn.pixabay.com/video/2020/08/20/47683-451458999_large.mp4", ThumbnailUrl = "https://cdn.pixabay.com/video/2020/08/20/47683-451458999_large.jpg" },
+            new MarketplaceItem { Title = "Rain on Window", Description = "Cozy rainy mood", VideoUrl = "https://cdn.pixabay.com/video/2023/10/22/185854-876353995_large.mp4", ThumbnailUrl = "https://cdn.pixabay.com/video/2023/10/22/185854-876353995_large.jpg" },
+            new MarketplaceItem { Title = "Snowy Mountains", Description = "Cinematic winter drone shot", VideoUrl = "https://cdn.pixabay.com/video/2023/11/09/188448-883391752_large.mp4", ThumbnailUrl = "https://cdn.pixabay.com/video/2023/11/09/188448-883391752_large.jpg" }
+        };
         LibraryItems = new ObservableCollection<WallpaperModel>();
         WatchedFolders = new ObservableCollection<string>();
         LibraryPreviews = new ObservableCollection<WallpaperPreviewItem>();
@@ -95,6 +116,9 @@ public sealed class MainViewModel : ObservableObject
             ApplyAccentColor();
         });
         ApplyAccentCommand = new RelayCommand(ApplyAccentColor);
+        DownloadMarketplaceItemCommand = new AsyncRelayCommand(parameter => DownloadMarketplaceItemAsync(parameter as MarketplaceItem));
+        ClearCacheCommand = new RelayCommand(ClearThumbnailCache);
+        TrimMemoryCommand = new RelayCommand(TrimMemory);
         ImportToLibraryCommand = new AsyncRelayCommand(ImportToLibraryAsync, () => File.Exists(VideoPath));
         RefreshLibraryCommand = new AsyncRelayCommand(RefreshLibraryAsync);
         SelectLibraryItemCommand = new RelayCommand(parameter =>
@@ -137,6 +161,7 @@ public sealed class MainViewModel : ObservableObject
         _wallpaperService.StatusChanged += (_, message) => CurrentStatus = message;
         _performanceService.SnapshotUpdated += (_, snapshot) => PerformanceSnapshot = snapshot;
         _autoPauseService.StateChanged += (_, state) => AutoPauseState = state;
+        _wallpaperService.ActiveWallpapersChanged += OnActiveWallpapersChanged;
 
         ThumbnailVlcOptions = _gpuOptimizationService.BuildThumbnailVlcArguments(Settings);
         _shuffleTimer = new System.Windows.Threading.DispatcherTimer
@@ -173,7 +198,10 @@ public sealed class MainViewModel : ObservableObject
 
     public PerformanceSettings Settings { get; }
     public ObservableCollection<string> AvailableThemes { get; }
+    public ObservableCollection<ThemeSwatchViewModel> ThemeSwatches { get; }
     public ObservableCollection<MonitorSelection> MonitorSelections { get; }
+    public ObservableCollection<MonitorCardViewModel> MonitorCards { get; }
+    public ObservableCollection<MarketplaceItem> MarketplaceItems { get; }
     public ObservableCollection<WallpaperModel> LibraryItems { get; }
     public ObservableCollection<string> WatchedFolders { get; }
     public ObservableCollection<WallpaperPreviewItem> LibraryPreviews { get; }
@@ -193,9 +221,12 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand PauseResumeCommand { get; }
     public RelayCommand StopCommand { get; }
     public RelayCommand SelectPageCommand { get; }
+    public AsyncRelayCommand DownloadMarketplaceItemCommand { get; }
     public RelayCommand SelectThemeCommand { get; }
     public RelayCommand SetAccentCommand { get; }
     public RelayCommand ApplyAccentCommand { get; }
+    public RelayCommand ClearCacheCommand { get; }
+    public RelayCommand TrimMemoryCommand { get; }
     public RelayCommand SelectLibraryItemCommand { get; }
     public RelayCommand ApplyPowerProfileCommand { get; }
     public RelayCommand ToggleFavoriteCommand { get; }
@@ -369,11 +400,25 @@ public sealed class MainViewModel : ObservableObject
     public void RefreshMonitors()
     {
         MonitorSelections.Clear();
+        MonitorCards.Clear();
         MonitorSelections.Add(new MonitorSelection("*", "All displays"));
+
+        var activeWallpapers = _wallpaperService.GetActiveWallpapers();
 
         foreach (var monitor in _monitorService.GetMonitors())
         {
             MonitorSelections.Add(new MonitorSelection(monitor.DeviceName, monitor.DisplayName));
+            
+            var activePath = activeWallpapers.TryGetValue(monitor.DeviceName, out var path) ? path : null;
+            var activeName = string.IsNullOrEmpty(activePath) ? "None" : Path.GetFileNameWithoutExtension(activePath);
+            
+            MonitorCards.Add(new MonitorCardViewModel(
+                monitor.DeviceName,
+                monitor.DisplayName,
+                $"{monitor.Bounds.Width}x{monitor.Bounds.Height}",
+                activeName,
+                device => _wallpaperService.ClearMonitorWallpaper(device)
+            ));
         }
 
         SelectedMonitorDeviceName = "*";
@@ -694,6 +739,101 @@ public sealed class MainViewModel : ObservableObject
         var next = LibraryItems[Random.Shared.Next(LibraryItems.Count)];
         VideoPath = next.FilePath;
         ApplyCommand.Execute(null);
+    }
+
+    private void OnActiveWallpapersChanged(object? sender, EventArgs e)
+    {
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            var activeWallpapers = _wallpaperService.GetActiveWallpapers();
+            foreach (var card in MonitorCards)
+            {
+                var activePath = activeWallpapers.TryGetValue(card.DeviceName, out var path) ? path : null;
+                card.ActiveWallpaperName = string.IsNullOrEmpty(activePath) ? "None" : Path.GetFileNameWithoutExtension(activePath);
+            }
+        });
+    }
+
+    private async Task DownloadMarketplaceItemAsync(MarketplaceItem? item)
+    {
+        if (item == null || item.IsDownloading) return;
+
+        item.IsDownloading = true;
+        item.DownloadProgress = 0;
+        CurrentStatus = $"Downloading {item.Title}...";
+
+        try
+        {
+            var destinationFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "LiveWallpapers");
+            Directory.CreateDirectory(destinationFolder);
+
+            var filename = $"{item.Title.Replace(" ", "_")}.mp4";
+            var destinationPath = Path.Combine(destinationFolder, filename);
+
+            if (!File.Exists(destinationPath))
+            {
+                var progress = new Progress<double>(p => item.DownloadProgress = p);
+                await _downloadService.DownloadFileAsync(item.VideoUrl, destinationPath, progress, CancellationToken.None);
+            }
+
+            if (!WatchedFolders.Contains(destinationFolder))
+            {
+                var manifest = await _libraryService.LoadAsync().ConfigureAwait(true);
+                if (!manifest.WatchedFolders.Contains(destinationFolder))
+                {
+                    manifest.WatchedFolders.Add(destinationFolder);
+                    await _libraryService.SaveAsync(manifest).ConfigureAwait(true);
+                    
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        if (!WatchedFolders.Contains(destinationFolder))
+                        {
+                            WatchedFolders.Add(destinationFolder);
+                        }
+                    });
+                }
+            }
+
+            await RefreshLibraryAsync();
+
+            CurrentStatus = $"{item.Title} downloaded and added to Library!";
+            item.DownloadProgress = 100;
+        }
+        catch (Exception ex)
+        {
+            CurrentStatus = $"Failed to download {item.Title}: {ex.Message}";
+        }
+        finally
+        {
+            item.IsDownloading = false;
+        }
+    }
+
+    private void ClearThumbnailCache()
+    {
+        try
+        {
+            var cacheDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "LiveWallpaperApp", "Thumbnails");
+
+            if (Directory.Exists(cacheDir))
+            {
+                Directory.Delete(cacheDir, true);
+            }
+            CurrentStatus = "Thumbnail cache cleared. They will be regenerated on next load.";
+            _ = RefreshLibraryAsync(); // Refresh to clear UI thumbnails
+        }
+        catch (Exception ex)
+        {
+            CurrentStatus = $"Failed to clear cache: {ex.Message}";
+        }
+    }
+
+    private void TrimMemory()
+    {
+        _memoryOptimizerService.TrimMemory();
+        CurrentStatus = "Memory garbage collection forced.";
     }
 }
 

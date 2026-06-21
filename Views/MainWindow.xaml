@@ -673,57 +673,282 @@
                     </ScrollViewer>
 
                     <Grid Visibility="{Binding SelectedPage, Converter={StaticResource PageVisibilityConverter}, ConverterParameter=Monitors}">
-                        <Border Style="{StaticResource PanelStyle}">
-                            <StackPanel>
-                                <TextBlock Text="Monitors" Style="{StaticResource TitleTextStyle}" />
-                                <TextBlock Text="Pilih target display tanpa membuat preview tambahan. Multi-monitor sync tetap dikontrol dari Settings." Style="{StaticResource CaptionStyle}" />
-                                <ComboBox ItemsSource="{Binding MonitorSelections}"
-                                          DisplayMemberPath="DisplayName"
-                                          SelectedValuePath="DeviceName"
-                                          SelectedValue="{Binding SelectedMonitorDeviceName, Mode=TwoWay}" />
-                                <CheckBox Content="Sync monitors" IsChecked="{Binding Settings.MultiMonitorSync}" Margin="0,18,0,0" />
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Text="Display Management" Style="{StaticResource TitleTextStyle}" Margin="0,0,0,8" />
+                                <TextBlock Text="Kelola wallpaper yang berjalan di setiap monitor secara independen." Style="{StaticResource CaptionStyle}" Margin="0,0,0,24" />
+                                
+                                <ItemsControl ItemsSource="{Binding MonitorCards}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource PanelStyle}" Margin="0,0,0,16">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    
+                                                    <!-- Monitor Icon Placeholder -->
+                                                    <Border Width="64" Height="64" CornerRadius="8" Background="{DynamicResource ComponentBgBrush}" Margin="0,0,16,0">
+                                                        <TextBlock Text="💻" FontSize="32" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="16" />
+                                                        <TextBlock Text="{Binding ResolutionText}" Style="{StaticResource CaptionStyle}" Margin="0,2,0,0" />
+                                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                            <TextBlock Text="Playing: " Foreground="{DynamicResource MutedTextBrush}" FontSize="12" />
+                                                            <TextBlock Text="{Binding ActiveWallpaperName}" Foreground="{DynamicResource AccentBrush}" FontSize="12" FontWeight="SemiBold" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    
+                                                    <Button Grid.Column="2" 
+                                                            Content="Clear Wallpaper" 
+                                                            Style="{StaticResource SecondaryButtonStyle}" 
+                                                            Command="{Binding ClearWallpaperCommand}" 
+                                                            VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <Border Style="{StaticResource PanelStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="Global Display Options" Style="{StaticResource TitleTextStyle}" />
+                                        <CheckBox Content="Sync monitors (Apply to all displays automatically)" IsChecked="{Binding Settings.MultiMonitorSync}" />
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
-                        </Border>
+                        </ScrollViewer>
                     </Grid>
 
                     <Grid Visibility="{Binding SelectedPage, Converter={StaticResource PageVisibilityConverter}, ConverterParameter=Themes}">
-                        <Border Style="{StaticResource PanelStyle}">
-                            <StackPanel>
-                                <TextBlock Text="Themes" Style="{StaticResource TitleTextStyle}" />
-                                <TextBlock Text="Tema dan accent color tetap ada, tapi efek glow/shadow default dibuat lebih ringan supaya RAM/GPU stabil." Style="{StaticResource CaptionStyle}" />
-                                <ComboBox ItemsSource="{Binding AvailableThemes}" SelectedItem="{Binding SelectedTheme}" />
-                                <Grid Margin="0,14,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="10" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox Text="{Binding AccentColorHex, UpdateSourceTrigger=PropertyChanged}" />
-                                    <Button Grid.Column="2" Content="Apply" Style="{StaticResource SecondaryButtonStyle}" Command="{Binding ApplyAccentCommand}" />
-                                </Grid>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Text="Personalization" Style="{StaticResource TitleTextStyle}" Margin="0,0,0,8" />
+                                <TextBlock Text="Customize the look and feel of the application." Style="{StaticResource CaptionStyle}" Margin="0,0,0,24" />
+
+                                <Border Style="{StaticResource PanelStyle}" Margin="0,0,0,16">
+                                    <StackPanel>
+                                        <TextBlock Text="Accent Colors" Style="{StaticResource TitleTextStyle}" Margin="0,0,0,12" />
+                                        
+                                        <ItemsControl ItemsSource="{Binding ThemeSwatches}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding ApplyCommand}" Margin="0,0,12,12" Width="48" Height="48" Cursor="Hand">
+                                                        <Button.Template>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border Background="{Binding ColorBrush}" 
+                                                                        CornerRadius="24"
+                                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                                        BorderThickness="2"
+                                                                        ToolTip="{Binding Name}">
+                                                                </Border>
+                                                            </ControlTemplate>
+                                                        </Button.Template>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <TextBlock Text="Custom Hex Code" Style="{StaticResource CaptionStyle}" Margin="0,8,0,8" />
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox Text="{Binding AccentColorHex, UpdateSourceTrigger=PropertyChanged}" />
+                                            <Button Grid.Column="2" Content="Apply" Style="{StaticResource SecondaryButtonStyle}" Command="{Binding ApplyAccentCommand}" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource PanelStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="Base Theme &amp; Effects" Style="{StaticResource TitleTextStyle}" Margin="0,0,0,12" />
+                                        
+                                        <TextBlock Text="App Theme" Style="{StaticResource CaptionStyle}" Margin="0,0,0,8" />
+                                        <ComboBox ItemsSource="{Binding AvailableThemes}" SelectedItem="{Binding SelectedTheme}" />
+                                        
+                                        <TextBlock Text="{Binding Settings.GlobalGlowRadius, StringFormat=Glow intensity {0}}" Style="{StaticResource CaptionStyle}" Margin="0,16,0,8" />
+                                        <Slider Minimum="0" Maximum="30" Value="{Binding Settings.GlobalGlowRadius}" />
+
+                                        <TextBlock Text="{Binding Settings.PanelOpacity, StringFormat=Panel opacity {0:P0}}" Style="{StaticResource CaptionStyle}" Margin="0,16,0,8" />
+                                        <Slider Minimum="0.5" Maximum="1.0" TickFrequency="0.05" Value="{Binding Settings.PanelOpacity}" />
+                                        
+                                        <TextBlock Text="{Binding Settings.GlobalBlurRadius, StringFormat=Blur intensity {0}}" Style="{StaticResource CaptionStyle}" Margin="0,16,0,8" />
+                                        <Slider Minimum="0" Maximum="40" Value="{Binding Settings.GlobalBlurRadius}" />
+                                        
+                                        <TextBlock Text="{Binding Settings.GlobalCornerRadius, StringFormat=Corner rounding {0}}" Style="{StaticResource CaptionStyle}" Margin="0,16,0,8" />
+                                        <Slider Minimum="0" Maximum="32" Value="{Binding Settings.GlobalCornerRadius}" />
+                                    </StackPanel>
+                                </Border>
+
                             </StackPanel>
-                        </Border>
+                        </ScrollViewer>
                     </Grid>
 
                     <Grid Visibility="{Binding SelectedPage, Converter={StaticResource PageVisibilityConverter}, ConverterParameter=Marketplace}">
-                        <Border Style="{StaticResource PanelStyle}">
-                            <StackPanel>
-                                <TextBlock Text="Marketplace" Style="{StaticResource TitleTextStyle}" />
-                                <TextBlock Text="Placeholder ringan untuk wallpaper pack / sharing nanti. Tidak ada WebView aktif supaya RAM tidak naik." Style="{StaticResource CaptionStyle}" />
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Text="Discover Wallpapers" Style="{StaticResource TitleTextStyle}" Margin="0,0,0,8" />
+                                <TextBlock Text="Browse and download high-quality cloud wallpapers directly to your library." Style="{StaticResource CaptionStyle}" Margin="0,0,0,24" />
+
+                                <ItemsControl ItemsSource="{Binding MarketplaceItems}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource PanelStyle}" Width="300" Margin="0,0,16,16" Padding="0" ClipToBounds="True">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="170" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
+                                                    
+                                                    <!-- Thumbnail image fallback to a rectangle if no real image control exists -->
+                                                    <Border Background="{DynamicResource ComponentBgBrush}">
+                                                        <TextBlock Text="🖼" FontSize="48" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.5" />
+                                                    </Border>
+                                                    
+                                                    <StackPanel Grid.Row="1" Margin="16">
+                                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="16" TextTrimming="CharacterEllipsis" Margin="0,0,0,4" />
+                                                        <TextBlock Text="{Binding Description}" Style="{StaticResource CaptionStyle}" TextWrapping="Wrap" Margin="0,0,0,12" Height="36" />
+                                                        
+                                                        <Grid>
+                                                            <Button Content="Download" 
+                                                                    Style="{StaticResource PrimaryButtonStyle}" 
+                                                                    Command="{Binding DataContext.DownloadMarketplaceItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Visibility="{Binding IsDownloading, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Inverse}" />
+                                                            
+                                                            <StackPanel Visibility="{Binding IsDownloading, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                <TextBlock Text="Downloading..." Style="{StaticResource CaptionStyle}" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                                                                <ProgressBar Minimum="0" Maximum="100" Value="{Binding DownloadProgress}" Height="4" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
-                        </Border>
+                        </ScrollViewer>
                     </Grid>
 
                     <Grid Visibility="{Binding SelectedPage, Converter={StaticResource PageVisibilityConverter}, ConverterParameter=About}">
-                        <Border Style="{StaticResource PanelStyle}">
-                            <StackPanel>
-                                <TextBlock Text="About" Style="{StaticResource TitleTextStyle}" />
-                                <TextBlock Text="{Binding PerformanceSnapshot.AppRamMb, StringFormat=App memory: {0:0} MB}" Foreground="{DynamicResource MutedTextBrush}" />
-                                <TextBlock Text="{Binding PerformanceSnapshot.CpuText}" Foreground="{DynamicResource MutedTextBrush}" />
-                                <TextBlock Text="{Binding PerformanceSnapshot.GpuText}" Foreground="{DynamicResource MutedTextBrush}" />
-                                <TextBlock Text="Tip: hover card di Library untuk preview. Kalau tidak di-hover, video preview tidak decode." Foreground="{DynamicResource MutedTextBrush}" Margin="0,12,0,0" />
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Text="About &amp; System" Style="{StaticResource TitleTextStyle}" Margin="0,0,0,8" />
+                                <TextBlock Text="Application information and system diagnostics." Style="{StaticResource CaptionStyle}" Margin="0,0,0,24" />
+
+                                <Border Style="{StaticResource PanelStyle}" Margin="0,0,0,16">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        
+                                        <Border Width="80" Height="80" CornerRadius="16" Background="{DynamicResource AccentBrush}" Margin="0,0,20,0">
+                                            <TextBlock Text="A" FontSize="48" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="Aura Engine Wallpaper" FontWeight="Bold" FontSize="24" Margin="0,0,0,4" />
+                                            <TextBlock Text="Version 1.0.0-beta" Style="{StaticResource CaptionStyle}" Margin="0,0,0,8" />
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="Created by " Style="{StaticResource CaptionStyle}" />
+                                                <TextBlock Text="Alazriel6" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" Cursor="Hand" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Style="{StaticResource PanelStyle}" Margin="0,0,0,16">
+                                    <StackPanel>
+                                        <TextBlock Text="System Health" Style="{StaticResource TitleTextStyle}" Margin="0,0,0,16" />
+                                        
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="100" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Processor" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{Binding PerformanceSnapshot.CpuText}" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                        </Grid>
+                                        
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="100" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Graphics" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{Binding PerformanceSnapshot.GpuText}" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="100" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Memory" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{Binding PerformanceSnapshot.RamText}" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                        </Grid>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="100" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="App Footprint" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{Binding PerformanceSnapshot.AppRamMb, StringFormat={}{0:0} MB}" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource PanelStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="Maintenance" Style="{StaticResource TitleTextStyle}" Margin="0,0,0,12" />
+                                        
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="Clear Thumbnail Cache" FontWeight="SemiBold" />
+                                                <TextBlock Text="Frees up disk space by deleting generated preview images." Style="{StaticResource CaptionStyle}" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="Clear Cache" Style="{StaticResource SecondaryButtonStyle}" Command="{Binding ClearCacheCommand}" Width="120" />
+                                        </Grid>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="Force Garbage Collection" FontWeight="SemiBold" />
+                                                <TextBlock Text="Immediately drops unreferenced objects from RAM." Style="{StaticResource CaptionStyle}" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="Trim Memory" Style="{StaticResource SecondaryButtonStyle}" Command="{Binding TrimMemoryCommand}" Width="120" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
-                        </Border>
+                        </ScrollViewer>
                     </Grid>
                 </Grid>
             </Grid>

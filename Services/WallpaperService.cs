@@ -54,6 +54,7 @@ public sealed class WallpaperService : IDisposable
     }
 
     public event EventHandler<string>? StatusChanged;
+    public event EventHandler? ActiveWallpapersChanged;
 
     public bool IsRunning => _wallpaperWindows.Count > 0;
     public bool IsPaused => _isManualPaused || _isAutoPaused;
@@ -255,12 +256,34 @@ public sealed class WallpaperService : IDisposable
             try { libVlc?.Dispose(); } catch { }
         });
 
+        ActiveWallpapersChanged?.Invoke(this, EventArgs.Empty);
+
         if (saveState)
         {
             SaveState();
         }
         
         StatusChanged?.Invoke(this, "Wallpaper stopped.");
+    }
+
+    public void ClearMonitorWallpaper(string monitorDeviceName)
+    {
+        if (!Application.Current.Dispatcher.CheckAccess())
+        {
+            Application.Current.Dispatcher.Invoke(() => ClearMonitorWallpaper(monitorDeviceName));
+            return;
+        }
+
+        var window = _wallpaperWindows.FirstOrDefault(w => string.Equals(w.Monitor.DeviceName, monitorDeviceName, StringComparison.OrdinalIgnoreCase));
+        if (window != null)
+        {
+            _wallpaperWindows.Remove(window);
+            window.Stop();
+            try { window.Dispose(); } catch { }
+            
+            ActiveWallpapersChanged?.Invoke(this, EventArgs.Empty);
+            SaveState();
+        }
     }
 
     public void Dispose()
@@ -321,5 +344,18 @@ public sealed class WallpaperService : IDisposable
         {
             Log($"RestoreState failed: {ex.Message}");
         }
+    }
+
+    public IReadOnlyDictionary<string, string> GetActiveWallpapers()
+    {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var window in _wallpaperWindows)
+        {
+            if (!string.IsNullOrWhiteSpace(window.CurrentPath))
+            {
+                dict[window.Monitor.DeviceName] = window.CurrentPath;
+            }
+        }
+        return dict;
     }
 }

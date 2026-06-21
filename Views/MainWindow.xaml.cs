@@ -20,7 +20,7 @@ public partial class MainWindow : Window
     private readonly PerformanceService _performanceService;
     private readonly AutoPauseService _autoPauseService;
     private readonly PreviewRenderService _previewRenderService;
-    private readonly MemoryCleanupService _memoryCleanupService;
+    private readonly MemoryOptimizerService _memoryOptimizerService;
     private readonly TrayService _trayService;
     private readonly SettingsService _settingsService;
     private readonly PerformanceSettings _performanceSettings;
@@ -43,7 +43,7 @@ public partial class MainWindow : Window
         _performanceService = new PerformanceService();
         _autoPauseService = new AutoPauseService(_wallpaperService, _performanceService, _performanceSettings);
         _previewRenderService = PreviewRenderCoordinator.Shared;
-        _memoryCleanupService = new MemoryCleanupService(_thumbnailService, _performanceSettings);
+        _memoryOptimizerService = new MemoryOptimizerService(_thumbnailService, _performanceSettings);
         _trayService = new TrayService();
 
         _viewModel = new MainViewModel(
@@ -57,6 +57,7 @@ public partial class MainWindow : Window
             _autoPauseService,
             _gpuOptimizationService,
             _previewRenderService,
+            _memoryOptimizerService,
             _performanceSettings);
 
         DataContext = _viewModel;
@@ -73,7 +74,7 @@ public partial class MainWindow : Window
         Deactivated += OnDeactivated;
         _performanceService.Start();
         _autoPauseService.Start();
-        _memoryCleanupService.Start();
+        _memoryOptimizerService.Start();
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -173,7 +174,7 @@ public partial class MainWindow : Window
         Task.Run(async () => 
         {
             await Task.Delay(500); // Give UI time to hide
-            _memoryCleanupService.TrimMemory();
+            _memoryOptimizerService.TrimMemory();
         });
     }
 
@@ -229,7 +230,8 @@ public partial class MainWindow : Window
         Deactivated -= OnDeactivated;
         _autoPauseService.Dispose();
         _performanceService.Dispose();
-        _memoryCleanupService.Dispose();
+        _memoryOptimizerService.Stop();
+        _memoryOptimizerService.Dispose();
         _wallpaperService.Dispose();
         _trayService.Dispose();
         PreviewVlcHost.DisposeSharedPreviewVlc();
