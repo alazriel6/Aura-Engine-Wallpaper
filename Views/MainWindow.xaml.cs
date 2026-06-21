@@ -5,6 +5,7 @@ using System.Windows.Interop;
 using LiveWallpaperApp.Models;
 using LiveWallpaperApp.Services;
 using LiveWallpaperApp.ViewModels;
+using Microsoft.Web.WebView2.Core;
 
 namespace LiveWallpaperApp.Views;
 
@@ -62,6 +63,8 @@ public partial class MainWindow : Window
 
         DataContext = _viewModel;
 
+        InitializeWebViewAsync();
+
         _trayService.Initialize(
             RestoreFromTray,
             _viewModel.PauseResumeWallpaper,
@@ -81,6 +84,37 @@ public partial class MainWindow : Window
     {
         base.OnSourceInitialized(e);
         EnableSystemBackdrop();
+    }
+
+    private async void InitializeWebViewAsync()
+    {
+        await MarketplaceWebView.EnsureCoreWebView2Async(null);
+        MarketplaceWebView.CoreWebView2.DownloadStarting += CoreWebView2_DownloadStarting;
+    }
+
+    private void CoreWebView2_DownloadStarting(object? sender, CoreWebView2DownloadStartingEventArgs e)
+    {
+        var download = e.DownloadOperation;
+        var ext = Path.GetExtension(e.ResultFilePath).ToLowerInvariant();
+
+        if (ext == ".mp4" || ext == ".webm" || ext == ".gif")
+        {
+            var newFileName = $"{Guid.NewGuid():N}{ext}";
+            var downloadPath = Path.Combine(_libraryService.LibraryRoot, newFileName);
+            
+            e.ResultFilePath = downloadPath;
+            e.Handled = true; 
+
+            download.StateChanged += async (s, args) =>
+            {
+                if (download.State == CoreWebView2DownloadState.Completed)
+                {
+                    await _libraryService.ImportVideoAsync(downloadPath);
+                    _viewModel.RefreshLibraryCommand.Execute(null);
+                    _trayService.ShowInfo("Download Complete", $"New live wallpaper added to your library!");
+                }
+            };
+        }
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -251,6 +285,65 @@ public partial class MainWindow : Window
 
         var backdrop = DwmSystemBackdropMainWindow;
         _ = DwmSetWindowAttribute(handle, DwmSystemBackdropType, ref backdrop, sizeof(int));
+    }
+
+    private void BrowserBackButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (MarketplaceWebView.CanGoBack) MarketplaceWebView.GoBack();
+    }
+
+    private void BrowserForwardButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (MarketplaceWebView.CanGoForward) MarketplaceWebView.GoForward();
+    }
+
+    private void BrowserRefreshButton_Click(object sender, RoutedEventArgs e)
+    {
+        MarketplaceWebView.Reload();
+    }
+
+    private void BrowserAddressBar_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            NavigateToAddress(BrowserAddressBar.Text);
+        }
+    }
+
+    private void BrowserGoButton_Click(object sender, RoutedEventArgs e)
+    {
+        NavigateToAddress(BrowserAddressBar.Text);
+    }
+
+    private void NavigateToAddress(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return;
+        
+        if (!url.StartsWith("http://") && !url.StartsWith("https://"))
+        {
+            if (url.Contains(".") && !url.Contains(" "))
+            {
+                url = "https://" + url;
+            }
+            else
+            {
+                url = "https://www.google.com/search?q=" + Uri.EscapeDataString(url);
+            }
+        }
+        
+        try
+        {
+            MarketplaceWebView.Source = new Uri(url);
+        }
+        catch { }
+    }
+
+    private void MarketplaceWebView_NavigationCompleted(object sender, CoreWebView2NavigationCompletedEventArgs e)
+    {
+        if (MarketplaceWebView.Source != null)
+        {
+            BrowserAddressBar.Text = MarketplaceWebView.Source.ToString();
+        }
     }
 
     private const int DwmUseImmersiveDarkMode = 20;
