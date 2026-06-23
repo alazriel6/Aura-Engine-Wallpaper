@@ -22,7 +22,9 @@ public sealed class MainViewModel : ObservableObject
     private readonly MemoryOptimizerService _memoryOptimizerService;
     private readonly DownloadService _downloadService = new();
 
-    private string _selectedPage = "Dashboard";
+    public PlaylistService Playlist { get; }
+
+    private string _selectedPage = "Home";
     private string _videoPath = string.Empty;
     private string _selectedMonitorDeviceName = "*";
     private string _currentStatus = "Ready";
@@ -35,7 +37,6 @@ public sealed class MainViewModel : ObservableObject
     private SystemPerformanceSnapshot _performanceSnapshot = new();
     private AutoPauseState _autoPauseState = AutoPauseState.Active;
     private IReadOnlyList<string> _thumbnailVlcOptions = Array.Empty<string>();
-    private readonly System.Windows.Threading.DispatcherTimer _shuffleTimer;
 
     public MainViewModel(
         WallpaperService wallpaperService,
@@ -49,6 +50,7 @@ public sealed class MainViewModel : ObservableObject
         GPUOptimizationService gpuOptimizationService,
         PreviewRenderService previewRenderService,
         MemoryOptimizerService memoryOptimizerService,
+        PlaylistService playlistService,
         PerformanceSettings settings)
     {
         _wallpaperService = wallpaperService;
@@ -62,6 +64,7 @@ public sealed class MainViewModel : ObservableObject
         _gpuOptimizationService = gpuOptimizationService;
         _previewRenderService = previewRenderService;
         _memoryOptimizerService = memoryOptimizerService;
+        Playlist = playlistService;
         Settings = settings;
 
         AvailableThemes = new ObservableCollection<string>(_themeService.AvailableThemes);
@@ -108,7 +111,7 @@ public sealed class MainViewModel : ObservableObject
         ApplyCommand = new RelayCommand(ApplyWallpaper, CanApplyWallpaper);
         PauseResumeCommand = new RelayCommand(PauseResumeWallpaper, () => _wallpaperService.IsRunning);
         StopCommand = new RelayCommand(StopWallpaper, () => _wallpaperService.IsRunning);
-        SelectPageCommand = new RelayCommand(parameter => SelectedPage = parameter?.ToString() ?? "Dashboard");
+        SelectPageCommand = new RelayCommand(parameter => SelectedPage = parameter?.ToString() ?? "Home");
         SelectThemeCommand = new RelayCommand(parameter => SelectedTheme = parameter?.ToString() ?? SelectedTheme);
         SetAccentCommand = new RelayCommand(parameter =>
         {
@@ -130,12 +133,41 @@ public sealed class MainViewModel : ObservableObject
 
             VideoPath = preview.FilePath;
             preview.Wallpaper.LastUsedAt = DateTimeOffset.Now;
-            SelectedPage = "Dashboard";
+            SelectedPage = "Home";
             CurrentStatus = $"Loaded {preview.DisplayName} from the library.";
             ApplyLibraryFilters();
             UpdateActivePreviewFlags();
         });
         ApplyPowerProfileCommand = new RelayCommand(parameter =>
+        {
+            if (parameter is PowerProfileMode mode)
+            {
+                Settings.PowerProfile = mode;
+            }
+        });
+
+        AddToPlaylistCommand = new AsyncRelayCommand(parameter =>
+        {
+            if (parameter is WallpaperPreviewItem item)
+            {
+                return Playlist.AddToPlaylistAsync(item.Wallpaper);
+            }
+            if (parameter is WallpaperModel model)
+            {
+                return Playlist.AddToPlaylistAsync(model);
+            }
+            return Task.CompletedTask;
+        });
+
+        RemoveFromPlaylistCommand = new AsyncRelayCommand(parameter =>
+        {
+            if (parameter is WallpaperModel model)
+            {
+                return Playlist.RemoveFromPlaylistAsync(model);
+            }
+            return Task.CompletedTask;
+        });
+        ApplyPerformanceModeCommand = new RelayCommand(parameter =>
         {
             if (parameter is OptionItem<UserPerformanceMode> option)
             {
@@ -164,20 +196,17 @@ public sealed class MainViewModel : ObservableObject
         _wallpaperService.ActiveWallpapersChanged += OnActiveWallpapersChanged;
 
         ThumbnailVlcOptions = _gpuOptimizationService.BuildThumbnailVlcArguments(Settings);
-        _shuffleTimer = new System.Windows.Threading.DispatcherTimer
-        {
-            Interval = TimeSpan.FromMinutes(5)
-        };
-        _shuffleTimer.Tick += OnShuffleTimerTick;
-        if (Settings.AutoShuffle)
-        {
-            _shuffleTimer.Start();
-        }
         _previewRenderService.MaximumActivePreviews = Settings.ThumbnailMaxConcurrentPlayers;
         RefreshMonitors();
         _isStartupEnabled = _startupService.IsEnabled();
         SelectedTheme = "Minimal Dark";
         _ = RefreshLibraryAsync();
+        _ = Playlist.InitializeAsync();
+        Playlist.WallpaperDue += (_, next) =>
+        {
+            VideoPath = next.FilePath;
+            ApplyCommand.Execute(null);
+        };
 
         // Defer wallpaper restore to after window is rendered so the UI is responsive
         Application.Current.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, () =>
@@ -229,9 +258,12 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand TrimMemoryCommand { get; }
     public RelayCommand SelectLibraryItemCommand { get; }
     public RelayCommand ApplyPowerProfileCommand { get; }
+    public RelayCommand ApplyPerformanceModeCommand { get; }
     public RelayCommand ToggleFavoriteCommand { get; }
     public AsyncRelayCommand ImportToLibraryCommand { get; }
     public AsyncRelayCommand RefreshLibraryCommand { get; }
+    public AsyncRelayCommand AddToPlaylistCommand { get; }
+    public AsyncRelayCommand RemoveFromPlaylistCommand { get; }
     public OptionItem<UserPerformanceMode>? SelectedPerformanceMode
     {
         get => _selectedPerformanceMode;
@@ -560,23 +592,18 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             var manifest = await _libraryService.LoadAsync().ConfigureAwait(true);
+            var newLibraryItems = new List<WallpaperModel>();
             
-            Application.Current.Dispatcher.Invoke(() => 
-            {
-                WatchedFolders.Clear();
-                foreach (var folder in manifest.WatchedFolders)
-                {
-                    WatchedFolders.Add(folder);
-                }
-            });
-
-            LibraryItems.Clear();
             foreach (var item in manifest.Wallpapers)
             {
-                LibraryItems.Add(item);
+                newLibraryItems.Add(item);
             }
 
-            foreach (var folder in manifest.WatchedFolders)
+            var foldersToScan = new List<string>(manifest.WatchedFolders);
+            foldersToScan.Add(_libraryService.LibraryRoot);
+            foldersToScan.Add(Path.Combine(_libraryService.LibraryRoot, "Downloads"));
+
+            foreach (var folder in foldersToScan.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 if (Directory.Exists(folder))
                 {
@@ -584,13 +611,14 @@ public sealed class MainViewModel : ObservableObject
                         .Where(f => f.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) ||
                                     f.EndsWith(".webm", StringComparison.OrdinalIgnoreCase) ||
                                     f.EndsWith(".mkv", StringComparison.OrdinalIgnoreCase) ||
-                                    f.EndsWith(".mov", StringComparison.OrdinalIgnoreCase));
+                                    f.EndsWith(".mov", StringComparison.OrdinalIgnoreCase) ||
+                                    f.EndsWith(".gif", StringComparison.OrdinalIgnoreCase));
 
                     foreach (var file in videoFiles)
                     {
-                        if (!LibraryItems.Any(item => PathsMatch(item.FilePath, file)))
+                        if (!newLibraryItems.Any(item => PathsMatch(item.FilePath, file)))
                         {
-                            LibraryItems.Add(new WallpaperModel
+                            newLibraryItems.Add(new WallpaperModel
                             {
                                 DisplayName = Path.GetFileNameWithoutExtension(file),
                                 FilePath = file,
@@ -603,9 +631,9 @@ public sealed class MainViewModel : ObservableObject
                 }
             }
 
-            if (File.Exists(VideoPath) && !LibraryItems.Any(item => PathsMatch(item.FilePath, VideoPath)))
+            if (File.Exists(VideoPath) && !newLibraryItems.Any(item => PathsMatch(item.FilePath, VideoPath)))
             {
-                LibraryItems.Add(new WallpaperModel
+                newLibraryItems.Add(new WallpaperModel
                 {
                     DisplayName = Path.GetFileNameWithoutExtension(VideoPath),
                     FilePath = VideoPath,
@@ -615,20 +643,36 @@ public sealed class MainViewModel : ObservableObject
                 });
             }
 
-            var previews = await _thumbnailService.BuildPreviewItemsAsync(LibraryItems, Settings).ConfigureAwait(true);
-            LibraryPreviews.Clear();
-            foreach (var preview in previews)
-            {
-                LibraryPreviews.Add(preview);
-            }
+            var previews = await _thumbnailService.BuildPreviewItemsAsync(newLibraryItems, Settings).ConfigureAwait(true);
 
-            RebuildCategories();
-            UpdateActivePreviewFlags();
-            ApplyLibraryFilters();
+            Application.Current.Dispatcher.Invoke(() => 
+            {
+                WatchedFolders.Clear();
+                foreach (var folder in manifest.WatchedFolders)
+                {
+                    WatchedFolders.Add(folder);
+                }
+
+                LibraryItems.Clear();
+                foreach (var item in newLibraryItems)
+                {
+                    LibraryItems.Add(item);
+                }
+
+                LibraryPreviews.Clear();
+                foreach (var preview in previews)
+                {
+                    LibraryPreviews.Add(preview);
+                }
+
+                RebuildCategories();
+                UpdateActivePreviewFlags();
+                ApplyLibraryFilters();
+            });
         }
         catch (Exception ex)
         {
-            CurrentStatus = ex.Message;
+            Application.Current.Dispatcher.Invoke(() => CurrentStatus = ex.Message);
         }
     }
 
@@ -725,20 +769,6 @@ public sealed class MainViewModel : ObservableObject
         {
             _themeService.ApplyVisualEffects(Settings);
         }
-
-        if (e.PropertyName == nameof(PerformanceSettings.AutoShuffle))
-        {
-            if (Settings.AutoShuffle) _shuffleTimer.Start();
-            else _shuffleTimer.Stop();
-        }
-    }
-
-    private void OnShuffleTimerTick(object? sender, EventArgs e)
-    {
-        if (!Settings.AutoShuffle || !LibraryItems.Any()) return;
-        var next = LibraryItems[Random.Shared.Next(LibraryItems.Count)];
-        VideoPath = next.FilePath;
-        ApplyCommand.Execute(null);
     }
 
     private void OnActiveWallpapersChanged(object? sender, EventArgs e)
@@ -764,7 +794,7 @@ public sealed class MainViewModel : ObservableObject
 
         try
         {
-            var destinationFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "LiveWallpapers");
+            var destinationFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "LiveWallpaperApp", "LiveWallpapers");
             Directory.CreateDirectory(destinationFolder);
 
             var filename = $"{item.Title.Replace(" ", "_")}.mp4";
@@ -814,8 +844,9 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             var cacheDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "LiveWallpaperApp", "Thumbnails");
+                AppDomain.CurrentDomain.BaseDirectory,
+                "LiveWallpaperApp",
+                "PreviewCache");
 
             if (Directory.Exists(cacheDir))
             {

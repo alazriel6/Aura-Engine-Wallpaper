@@ -27,12 +27,11 @@ public sealed class WallpaperService : IDisposable
         _gpuOptimizationService = gpuOptimizationService;
 
         var appDataDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            AppDomain.CurrentDomain.BaseDirectory,
             "LiveWallpaperApp");
 
         _stateFilePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "LiveWallpaperApp",
+            appDataDir,
             "state.json");
 
         _logPath = Path.Combine(appDataDir, "debug.log");

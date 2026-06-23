@@ -16,7 +16,7 @@ public sealed class ThumbnailService
     }
 
     public string CacheRoot { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        AppDomain.CurrentDomain.BaseDirectory,
         "LiveWallpaperApp",
         "PreviewCache");
 
@@ -57,7 +57,21 @@ public sealed class ThumbnailService
         try
         {
             var previewPath = GetPreviewPath(item.FilePath);
-            if (!File.Exists(previewPath))
+            var isCached = false;
+            if (File.Exists(previewPath))
+            {
+                var info = new FileInfo(previewPath);
+                if (info.Length > 0)
+                {
+                    isCached = true;
+                }
+                else
+                {
+                    try { info.Delete(); } catch { }
+                }
+            }
+
+            if (!isCached)
             {
                 var generated = await TryGenerateLowBitratePreviewAsync(
                     item.FilePath,
@@ -136,13 +150,35 @@ public sealed class ThumbnailService
             try
             {
                 var ffMpeg = new NReco.VideoConverter.FFMpegConverter();
-                ffMpeg.GetVideoThumbnail(sourcePath, previewPath, 1f);
-                return File.Exists(previewPath);
+                try 
+                {
+                    ffMpeg.GetVideoThumbnail(sourcePath, previewPath, 1f);
+                }
+                catch
+                {
+                    ffMpeg.GetVideoThumbnail(sourcePath, previewPath, 0.1f);
+                }
+
+                if (File.Exists(previewPath) && new FileInfo(previewPath).Length > 0)
+                {
+                    return true;
+                }
             }
-            catch
+            catch { }
+
+            try
             {
-                return LiveWallpaperApp.Native.ShellThumbnailProvider.TryExtractThumbnail(sourcePath, previewPath, 426, 240);
+                if (LiveWallpaperApp.Native.ShellThumbnailProvider.TryExtractThumbnail(sourcePath, previewPath, 426, 240))
+                {
+                    if (File.Exists(previewPath) && new FileInfo(previewPath).Length > 0)
+                    {
+                        return true;
+                    }
+                }
             }
+            catch { }
+
+            return false;
         }, cancellationToken);
     }
 

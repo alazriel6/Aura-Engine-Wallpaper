@@ -11,7 +11,7 @@ public sealed class WallpaperLibraryService
     };
 
     public string LibraryRoot { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        AppDomain.CurrentDomain.BaseDirectory,
         "LiveWallpaperApp",
         "Library");
 

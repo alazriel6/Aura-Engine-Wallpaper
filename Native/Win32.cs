@@ -23,7 +23,7 @@ public static class Win32
     public const uint WorkerWSpawnMessage = 0x052C;
 
     private static readonly string LogPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        AppDomain.CurrentDomain.BaseDirectory,
         "LiveWallpaperApp", "debug.log");
 
     public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);

@@ -11,8 +11,8 @@ public sealed class SettingsService
 
     public SettingsService()
     {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var appDirectory = Path.Combine(localAppData, "LiveWallpaperApp");
+        var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+        var appDirectory = Path.Combine(baseDirectory, "LiveWallpaperApp");
         Directory.CreateDirectory(appDirectory);
         _settingsFilePath = Path.Combine(appDirectory, "Settings.json");
     }

@@ -20,7 +20,6 @@ public partial class AnimatedThumbnailControl : UserControl, IDisposable
         typeof(AnimatedThumbnailControl),
         new PropertyMetadata(Array.Empty<string>()));
 
-    private readonly DispatcherTimer _visibilityTimer;
     private MediaPlayer? _mediaPlayer;
     private Media? _media;
     private readonly Guid _ownerId = Guid.NewGuid();
@@ -31,12 +30,6 @@ public partial class AnimatedThumbnailControl : UserControl, IDisposable
     public AnimatedThumbnailControl()
     {
         InitializeComponent();
-
-        _visibilityTimer = new DispatcherTimer(DispatcherPriority.Background)
-        {
-            Interval = TimeSpan.FromMilliseconds(250)
-        };
-        _visibilityTimer.Tick += (_, _) => SyncPlaybackState();
     }
 
     public string VideoPath
@@ -61,13 +54,11 @@ public partial class AnimatedThumbnailControl : UserControl, IDisposable
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        _visibilityTimer.Start();
         SyncPlaybackState();
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        _visibilityTimer.Stop();
         ReleasePlayer();
         PreviewRenderCoordinator.Shared.Release(_ownerId);
         _hasPreviewSlot = false;
@@ -196,7 +187,6 @@ public partial class AnimatedThumbnailControl : UserControl, IDisposable
         }
 
         _isDisposed = true;
-        _visibilityTimer.Stop();
         ReleasePlayer();
         PreviewRenderCoordinator.Shared.Release(_ownerId);
         GC.SuppressFinalize(this);

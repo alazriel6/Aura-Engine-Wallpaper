@@ -21,7 +21,6 @@ public sealed class PerformanceSettings : ObservableObject
     private bool _minimizeToTray = true;
     private bool _autoRestoreWallpaper = true;
     private bool _loopWallpaper = true;
-    private bool _autoShuffle;
     private bool _multiMonitorSync = true;
     private bool _pauseFullscreenGame = true;
     private bool _pauseMaximizedApplication = false;
@@ -156,12 +155,6 @@ public sealed class PerformanceSettings : ObservableObject
     {
         get => _loopWallpaper;
         set => SetProperty(ref _loopWallpaper, value);
-    }
-
-    public bool AutoShuffle
-    {
-        get => _autoShuffle;
-        set => SetProperty(ref _autoShuffle, value);
     }
 
     public bool MultiMonitorSync

@@ -45,6 +45,7 @@ public partial class MainWindow : Window
         _autoPauseService = new AutoPauseService(_wallpaperService, _performanceService, _performanceSettings);
         _previewRenderService = PreviewRenderCoordinator.Shared;
         _memoryOptimizerService = new MemoryOptimizerService(_thumbnailService, _performanceSettings);
+        var playlistService = new PlaylistService(_libraryService);
         _trayService = new TrayService();
 
         _viewModel = new MainViewModel(
@@ -59,11 +60,12 @@ public partial class MainWindow : Window
             _gpuOptimizationService,
             _previewRenderService,
             _memoryOptimizerService,
+            playlistService,
             _performanceSettings);
 
         DataContext = _viewModel;
 
-        InitializeWebViewAsync();
+        _viewModel.PropertyChanged += ViewModel_PropertyChanged;
 
         _trayService.Initialize(
             RestoreFromTray,
@@ -86,35 +88,81 @@ public partial class MainWindow : Window
         EnableSystemBackdrop();
     }
 
+    private Microsoft.Web.WebView2.Wpf.WebView2? _marketplaceWebView;
+
+    private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.SelectedPage))
+        {
+            if (_viewModel.SelectedPage == "Marketplace")
+            {
+                InitializeWebViewAsync();
+            }
+            else
+            {
+                DestroyWebView();
+            }
+        }
+    }
+
     private async void InitializeWebViewAsync()
     {
-        await MarketplaceWebView.EnsureCoreWebView2Async(null);
-        MarketplaceWebView.CoreWebView2.DownloadStarting += CoreWebView2_DownloadStarting;
+        if (_marketplaceWebView != null) return;
+        
+        _marketplaceWebView = new Microsoft.Web.WebView2.Wpf.WebView2
+        {
+            Source = new Uri("https://search.brave.com/search?q=live+wallpapers+download")
+        };
+        _marketplaceWebView.NavigationCompleted += MarketplaceWebView_NavigationCompleted;
+        MarketplaceContainer.Child = _marketplaceWebView;
+
+        await _marketplaceWebView.EnsureCoreWebView2Async(null);
+        
+        var downloadFolder = Path.Combine(_libraryService.LibraryRoot, "Downloads");
+        Directory.CreateDirectory(downloadFolder);
+        _marketplaceWebView.CoreWebView2.Profile.DefaultDownloadFolderPath = downloadFolder;
+        
+        _marketplaceWebView.CoreWebView2.DownloadStarting += CoreWebView2_DownloadStarting;
+    }
+
+    private void DestroyWebView()
+    {
+        if (_marketplaceWebView == null) return;
+        
+        MarketplaceContainer.Child = null;
+        _marketplaceWebView.NavigationCompleted -= MarketplaceWebView_NavigationCompleted;
+        if (_marketplaceWebView.CoreWebView2 != null)
+        {
+            _marketplaceWebView.CoreWebView2.DownloadStarting -= CoreWebView2_DownloadStarting;
+        }
+        
+        _marketplaceWebView.Dispose();
+        _marketplaceWebView = null;
     }
 
     private void CoreWebView2_DownloadStarting(object? sender, CoreWebView2DownloadStartingEventArgs e)
     {
         var download = e.DownloadOperation;
-        var ext = Path.GetExtension(e.ResultFilePath).ToLowerInvariant();
 
-        if (ext == ".mp4" || ext == ".webm" || ext == ".gif")
+        download.StateChanged += async (s, args) =>
         {
-            var newFileName = $"{Guid.NewGuid():N}{ext}";
-            var downloadPath = Path.Combine(_libraryService.LibraryRoot, newFileName);
-            
-            e.ResultFilePath = downloadPath;
-            e.Handled = true; 
-
-            download.StateChanged += async (s, args) =>
+            if (download.State == CoreWebView2DownloadState.Completed)
             {
-                if (download.State == CoreWebView2DownloadState.Completed)
+                var finalPath = download.ResultFilePath;
+                var ext = Path.GetExtension(finalPath).ToLowerInvariant();
+
+                if (ext == ".mp4" || ext == ".webm" || ext == ".gif")
                 {
-                    await _libraryService.ImportVideoAsync(downloadPath);
+                    await _libraryService.ImportVideoAsync(finalPath);
+                    
+                    // Clean up the raw file after successful import
+                    try { File.Delete(finalPath); } catch { }
+                    
                     _viewModel.RefreshLibraryCommand.Execute(null);
                     _trayService.ShowInfo("Download Complete", $"New live wallpaper added to your library!");
                 }
-            };
-        }
+            }
+        };
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -195,8 +243,11 @@ public partial class MainWindow : Window
 
         if (WindowState != WindowState.Minimized || _isExiting)
         {
+            try { _marketplaceWebView?.CoreWebView2?.Resume(); } catch { }
             return;
         }
+
+        try { _marketplaceWebView?.CoreWebView2?.TrySuspendAsync(); } catch { }
 
         if (_performanceSettings.MinimizeToTray && _performanceSettings.ShowTrayIcon)
         {
@@ -289,17 +340,17 @@ public partial class MainWindow : Window
 
     private void BrowserBackButton_Click(object sender, RoutedEventArgs e)
     {
-        if (MarketplaceWebView.CanGoBack) MarketplaceWebView.GoBack();
+        if (_marketplaceWebView != null && _marketplaceWebView.CanGoBack) _marketplaceWebView.GoBack();
     }
 
     private void BrowserForwardButton_Click(object sender, RoutedEventArgs e)
     {
-        if (MarketplaceWebView.CanGoForward) MarketplaceWebView.GoForward();
+        if (_marketplaceWebView != null && _marketplaceWebView.CanGoForward) _marketplaceWebView.GoForward();
     }
 
     private void BrowserRefreshButton_Click(object sender, RoutedEventArgs e)
     {
-        MarketplaceWebView.Reload();
+        _marketplaceWebView?.Reload();
     }
 
     private void BrowserAddressBar_KeyDown(object sender, KeyEventArgs e)
@@ -317,7 +368,7 @@ public partial class MainWindow : Window
 
     private void NavigateToAddress(string url)
     {
-        if (string.IsNullOrWhiteSpace(url)) return;
+        if (string.IsNullOrWhiteSpace(url) || _marketplaceWebView == null) return;
         
         if (!url.StartsWith("http://") && !url.StartsWith("https://"))
         {
@@ -327,22 +378,22 @@ public partial class MainWindow : Window
             }
             else
             {
-                url = "https://www.google.com/search?q=" + Uri.EscapeDataString(url);
+                url = "https://search.brave.com/search?q=" + Uri.EscapeDataString(url);
             }
         }
         
         try
         {
-            MarketplaceWebView.Source = new Uri(url);
+            _marketplaceWebView.Source = new Uri(url);
         }
         catch { }
     }
 
     private void MarketplaceWebView_NavigationCompleted(object sender, CoreWebView2NavigationCompletedEventArgs e)
     {
-        if (MarketplaceWebView.Source != null)
+        if (_marketplaceWebView?.Source != null)
         {
-            BrowserAddressBar.Text = MarketplaceWebView.Source.ToString();
+            BrowserAddressBar.Text = _marketplaceWebView.Source.ToString();
         }
     }
 
