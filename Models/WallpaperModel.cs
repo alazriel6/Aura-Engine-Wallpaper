@@ -8,6 +8,7 @@ public sealed class WallpaperModel
     public string FilePath { get; set; } = string.Empty;
     public string PreviewPath { get; set; } = string.Empty;
     public string ThumbnailPath { get; set; } = string.Empty;
+    public long FileSizeBytes { get; set; } = 0;
     public string MonitorDeviceName { get; set; } = "*";
     public string ThemeName { get; set; } = "Dark";
     public string AccentColorHex { get; set; } = "#33F5FF";
@@ -21,6 +22,7 @@ public sealed class WallpaperModel
     public string Duration { get; set; } = "Unknown";
     public DateTimeOffset LastUsedAt { get; set; }
     public DateTimeOffset ImportedAt { get; set; } = DateTimeOffset.Now;
+    public int Rating { get; set; } = 0;
     public List<string> Tags { get; set; } = new();
     public Dictionary<string, string> Metadata { get; set; } = new();
 }

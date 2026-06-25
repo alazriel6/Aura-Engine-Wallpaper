@@ -45,7 +45,9 @@ public partial class MainWindow : Window
         _autoPauseService = new AutoPauseService(_wallpaperService, _performanceService, _performanceSettings);
         _previewRenderService = PreviewRenderCoordinator.Shared;
         _memoryOptimizerService = new MemoryOptimizerService(_thumbnailService, _performanceSettings);
-        var playlistService = new PlaylistService(_libraryService);
+        var playlistService = new PlaylistService(_libraryService, _thumbnailService);
+        var profileService = new ProfileService(_settingsService, _performanceSettings);
+        var systemHealthService = new SystemHealthService(_performanceService, _settingsService);
         _trayService = new TrayService();
 
         _viewModel = new MainViewModel(
@@ -61,6 +63,8 @@ public partial class MainWindow : Window
             _previewRenderService,
             _memoryOptimizerService,
             playlistService,
+            profileService,
+            systemHealthService,
             _performanceSettings);
 
         DataContext = _viewModel;
@@ -77,7 +81,7 @@ public partial class MainWindow : Window
         Loaded += OnLoaded;
         Activated += OnActivated;
         Deactivated += OnDeactivated;
-        _performanceService.Start();
+        _performanceService.Start(true);
         _autoPauseService.Start();
         _memoryOptimizerService.Start();
     }
@@ -185,6 +189,10 @@ public partial class MainWindow : Window
         
         _trayService.SetVisibility(_performanceSettings.ShowTrayIcon);
         _themeService.ApplyVisualEffects(_performanceSettings);
+        try { _themeService.ApplyTheme(_performanceSettings.SelectedTheme); } catch {}
+        try { _themeService.ApplyAccentColor(_performanceSettings.AccentColorHex); } catch {}
+        _currentUiScale = 1.0;
+        ApplyUiScale(_performanceSettings.UiScale);
 
         if (_performanceSettings.AutoRestoreWallpaper && !string.IsNullOrWhiteSpace(_performanceSettings.LastWallpaperPath))
         {
@@ -201,6 +209,42 @@ public partial class MainWindow : Window
         {
             _trayService.SetVisibility(_performanceSettings.ShowTrayIcon);
         }
+        else if (e.PropertyName == nameof(PerformanceSettings.UiScale))
+        {
+            ApplyUiScale(_performanceSettings.UiScale);
+        }
+    }
+
+    private double _currentUiScale = 1.0;
+
+    private void ApplyUiScale(double newScale)
+    {
+        if (Math.Abs(_currentUiScale - newScale) < 0.01 && Content is FrameworkElement existingContent && existingContent.LayoutTransform is System.Windows.Media.ScaleTransform)
+        {
+            return;
+        }
+
+        double ratio = newScale / _currentUiScale;
+
+        // Scale the window itself to prevent layout squishing/overflow
+        this.Width = this.Width * ratio;
+        this.Height = this.Height * ratio;
+        this.MinWidth = 1180 * newScale;
+        this.MinHeight = 740 * newScale;
+
+        RootGrid.LayoutTransform = new System.Windows.Media.ScaleTransform(newScale, newScale);
+
+        var chrome = System.Windows.Shell.WindowChrome.GetWindowChrome(this);
+        if (chrome != null)
+        {
+            chrome.CaptionHeight = 54 * newScale;
+        }
+
+        // Fix blurry text that occurs when LayoutRounding is active at non-1.0 scales
+        var mode = newScale == 1.0 ? System.Windows.Media.TextFormattingMode.Display : System.Windows.Media.TextFormattingMode.Ideal;
+        System.Windows.Media.TextOptions.SetTextFormattingMode(this, mode);
+
+        _currentUiScale = newScale;
     }
 
     private void OnTitleBarMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -229,7 +273,15 @@ public partial class MainWindow : Window
 
     private void OnCloseClick(object sender, RoutedEventArgs e)
     {
-        ExitApplication();
+        if (_performanceSettings.CloseToTray && _performanceSettings.ShowTrayIcon)
+        {
+            Hide();
+            _trayService.ShowInfo("Live Wallpaper App", "App is running in the background.");
+        }
+        else
+        {
+            ExitApplication();
+        }
     }
 
     private void ToggleMaximize()

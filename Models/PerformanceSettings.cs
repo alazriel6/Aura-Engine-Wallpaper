@@ -55,6 +55,50 @@ public sealed class PerformanceSettings : ObservableObject
     private string _selectedTheme = "Minimal Dark";
     private string _accentColorHex = "#33F5FF";
 
+    // --- NEW SETTINGS ---
+    private bool _closeToTray = false;
+    private bool _checkForUpdatesAutomatically = true;
+    private bool _runAsAdministrator = false;
+    private double _uiScale = 1.0;
+    private int _wallpaperChangeIntervalMinutes = 15;
+    private bool _muteWallpaperAudio = false;
+    private int _masterVolume = 100;
+    private bool _muteWhenUnfocused = false;
+    private bool _muteWhenFullscreen = true;
+    private bool _audioFadeTransitions = true;
+    private bool _pauseRemoteDesktop = true;
+    private bool _pauseLaptopUnplugged = true;
+    private bool _autoShuffle = true;
+    private bool _autoApplyLastWallpaper = true;
+    private bool _sendAnonymousDiagnostics = false;
+
+    // --- NEW PERFORMANCE CONTROL CENTER SETTINGS ---
+    private bool _frameLimiterEnabled = true;
+    private bool _dynamicFpsEnabled = true;
+    private bool _pauseMonitorSleeping = true;
+    private bool _pauseScreenLocked = true;
+    private bool _pauseScreenSharing = false;
+    private bool _pauseStreamingSoftware = false;
+    private bool _reduceFpsHighCpu = true;
+    private bool _reduceFpsHighGpu = true;
+    private bool _reduceQualityHighRam = true;
+    private bool _disableEffectsOnBattery = true;
+    private bool _autoSwitchPerformanceProfile = true;
+    private bool _hardwareVideoDecoding = true;
+    private bool _multiThreadRendering = true;
+    private bool _hardwareScaling = true;
+    private bool _gpuScheduling = true;
+    private bool _reduceFpsUnfocused = true;
+    private bool _pauseMinimized = true;
+    private bool _pauseMonitorOff = true;
+    private bool _reduceUpdateFrequency = true;
+    private bool _suspendBackgroundRendering = true;
+    private int _maxCpuUsageLimit = 80;
+    private int _maxGpuUsageLimit = 85;
+    private int _maxRamUsageLimitMb = 4096;
+    private int _maxVramUsageLimitMb = 2048;
+    private ResourceExceedAction _resourceLimitExceededAction = ResourceExceedAction.WarnUser;
+
     public WallpaperRenderEngine RenderEngine
     {
         get => _renderEngine;
@@ -76,7 +120,13 @@ public sealed class PerformanceSettings : ObservableObject
     public PowerProfileMode PowerProfile
     {
         get => _powerProfile;
-        set => SetProperty(ref _powerProfile, value);
+        set
+        {
+            if (SetProperty(ref _powerProfile, value))
+            {
+                ApplyPowerProfile(value);
+            }
+        }
     }
 
     public UserPerformanceMode UserPerformanceMode
@@ -355,19 +405,140 @@ public sealed class PerformanceSettings : ObservableObject
         set => SetProperty(ref _accentColorHex, value);
     }
 
+    // --- NEW SETTINGS PROPERTIES ---
+
+    public bool CloseToTray
+    {
+        get => _closeToTray;
+        set => SetProperty(ref _closeToTray, value);
+    }
+
+    public bool CheckForUpdatesAutomatically
+    {
+        get => _checkForUpdatesAutomatically;
+        set => SetProperty(ref _checkForUpdatesAutomatically, value);
+    }
+
+    public bool RunAsAdministrator
+    {
+        get => _runAsAdministrator;
+        set => SetProperty(ref _runAsAdministrator, value);
+    }
+
+    public double UiScale
+    {
+        get => _uiScale;
+        set => SetProperty(ref _uiScale, value);
+    }
+
+    public int WallpaperChangeIntervalMinutes
+    {
+        get => _wallpaperChangeIntervalMinutes;
+        set => SetProperty(ref _wallpaperChangeIntervalMinutes, value);
+    }
+
+    public bool MuteWallpaperAudio
+    {
+        get => _muteWallpaperAudio;
+        set => SetProperty(ref _muteWallpaperAudio, value);
+    }
+
+    public int MasterVolume
+    {
+        get => _masterVolume;
+        set => SetProperty(ref _masterVolume, Math.Clamp(value, 0, 100));
+    }
+
+    public bool MuteWhenUnfocused
+    {
+        get => _muteWhenUnfocused;
+        set => SetProperty(ref _muteWhenUnfocused, value);
+    }
+
+    public bool MuteWhenFullscreen
+    {
+        get => _muteWhenFullscreen;
+        set => SetProperty(ref _muteWhenFullscreen, value);
+    }
+
+    public bool AudioFadeTransitions
+    {
+        get => _audioFadeTransitions;
+        set => SetProperty(ref _audioFadeTransitions, value);
+    }
+
+    public bool PauseRemoteDesktop
+    {
+        get => _pauseRemoteDesktop;
+        set => SetProperty(ref _pauseRemoteDesktop, value);
+    }
+
+    public bool PauseLaptopUnplugged
+    {
+        get => _pauseLaptopUnplugged;
+        set => SetProperty(ref _pauseLaptopUnplugged, value);
+    }
+
+    public bool AutoShuffle
+    {
+        get => _autoShuffle;
+        set => SetProperty(ref _autoShuffle, value);
+    }
+
+    public bool AutoApplyLastWallpaper
+    {
+        get => _autoApplyLastWallpaper;
+        set => SetProperty(ref _autoApplyLastWallpaper, value);
+    }
+
+    public bool SendAnonymousDiagnostics
+    {
+        get => _sendAnonymousDiagnostics;
+        set => SetProperty(ref _sendAnonymousDiagnostics, value);
+    }
+
+    // --- NEW PERFORMANCE CONTROL CENTER SETTINGS ---
+    public bool FrameLimiterEnabled { get => _frameLimiterEnabled; set => SetProperty(ref _frameLimiterEnabled, value); }
+    public bool DynamicFpsEnabled { get => _dynamicFpsEnabled; set => SetProperty(ref _dynamicFpsEnabled, value); }
+    public bool PauseMonitorSleeping { get => _pauseMonitorSleeping; set => SetProperty(ref _pauseMonitorSleeping, value); }
+    public bool PauseScreenLocked { get => _pauseScreenLocked; set => SetProperty(ref _pauseScreenLocked, value); }
+    public bool PauseScreenSharing { get => _pauseScreenSharing; set => SetProperty(ref _pauseScreenSharing, value); }
+    public bool PauseStreamingSoftware { get => _pauseStreamingSoftware; set => SetProperty(ref _pauseStreamingSoftware, value); }
+    public bool ReduceFpsHighCpu { get => _reduceFpsHighCpu; set => SetProperty(ref _reduceFpsHighCpu, value); }
+    public bool ReduceFpsHighGpu { get => _reduceFpsHighGpu; set => SetProperty(ref _reduceFpsHighGpu, value); }
+    public bool ReduceQualityHighRam { get => _reduceQualityHighRam; set => SetProperty(ref _reduceQualityHighRam, value); }
+    public bool DisableEffectsOnBattery { get => _disableEffectsOnBattery; set => SetProperty(ref _disableEffectsOnBattery, value); }
+    public bool AutoSwitchPerformanceProfile { get => _autoSwitchPerformanceProfile; set => SetProperty(ref _autoSwitchPerformanceProfile, value); }
+    public bool HardwareVideoDecoding { get => _hardwareVideoDecoding; set => SetProperty(ref _hardwareVideoDecoding, value); }
+    public bool MultiThreadRendering { get => _multiThreadRendering; set => SetProperty(ref _multiThreadRendering, value); }
+    public bool HardwareScaling { get => _hardwareScaling; set => SetProperty(ref _hardwareScaling, value); }
+    public bool GpuScheduling { get => _gpuScheduling; set => SetProperty(ref _gpuScheduling, value); }
+    public bool ReduceFpsUnfocused { get => _reduceFpsUnfocused; set => SetProperty(ref _reduceFpsUnfocused, value); }
+    public bool PauseMinimized { get => _pauseMinimized; set => SetProperty(ref _pauseMinimized, value); }
+    public bool PauseMonitorOff { get => _pauseMonitorOff; set => SetProperty(ref _pauseMonitorOff, value); }
+    public bool ReduceUpdateFrequency { get => _reduceUpdateFrequency; set => SetProperty(ref _reduceUpdateFrequency, value); }
+    public bool SuspendBackgroundRendering { get => _suspendBackgroundRendering; set => SetProperty(ref _suspendBackgroundRendering, value); }
+    public int MaxCpuUsageLimit { get => _maxCpuUsageLimit; set => SetProperty(ref _maxCpuUsageLimit, Math.Clamp(value, 10, 100)); }
+    public int MaxGpuUsageLimit { get => _maxGpuUsageLimit; set => SetProperty(ref _maxGpuUsageLimit, Math.Clamp(value, 10, 100)); }
+    public int MaxRamUsageLimitMb { get => _maxRamUsageLimitMb; set => SetProperty(ref _maxRamUsageLimitMb, Math.Clamp(value, 256, 32768)); }
+    public int MaxVramUsageLimitMb { get => _maxVramUsageLimitMb; set => SetProperty(ref _maxVramUsageLimitMb, Math.Clamp(value, 128, 24576)); }
+    public ResourceExceedAction ResourceLimitExceededAction { get => _resourceLimitExceededAction; set => SetProperty(ref _resourceLimitExceededAction, value); }
+
     public int EffectiveFps => FpsLimit switch
     {
         FpsLimitMode.Fps5 => 5,
         FpsLimitMode.Fps15 => 15,
         FpsLimitMode.Fps30 => 30,
+        FpsLimitMode.Fps45 => 45,
         FpsLimitMode.Fps60 => 60,
+        FpsLimitMode.Fps90 => 90,
         FpsLimitMode.Fps120 => 120,
+        FpsLimitMode.Fps144 => 144,
         _ => 0
     };
 
     public void ApplyPowerProfile(PowerProfileMode profile)
     {
-        PowerProfile = profile;
 
         switch (profile)
         {

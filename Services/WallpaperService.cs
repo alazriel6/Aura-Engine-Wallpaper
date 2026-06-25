@@ -138,7 +138,6 @@ public sealed class WallpaperService : IDisposable
             Log($"ApplyWallpaper: creating window for {monitor.DeviceName} bounds=({monitor.Bounds.Left},{monitor.Bounds.Top},{monitor.Bounds.Width},{monitor.Bounds.Height})");
 
             var wallpaperWindow = new WinFormsWallpaperForm(monitor, _sharedWallpaperLibVlc);
-            wallpaperWindow.Show();
 
             var handle = wallpaperWindow.Handle;
             Log($"ApplyWallpaper: window HWND = 0x{handle:X}");
@@ -152,7 +151,12 @@ public sealed class WallpaperService : IDisposable
                 monitor.Bounds.Width,
                 monitor.Bounds.Height);
 
+            // Show the form — it starts offscreen at (-32000,-32000) so no flash
+            wallpaperWindow.Show();
+
             Log("ApplyWallpaper: calling Play");
+            wallpaperWindow.SetVolume(settings.MasterVolume, settings.MuteWallpaperAudio);
+            wallpaperWindow.SetPlaybackRate((float)settings.AnimationSpeed);
             wallpaperWindow.Play(videoPath);
             
             // Make the WinForms Form AND the LibVLC VideoView child windows click-through
@@ -169,6 +173,28 @@ public sealed class WallpaperService : IDisposable
         SaveState();
         Log("ApplyWallpaper: done, state saved");
         StatusChanged?.Invoke(this, $"Wallpaper applied to {_wallpaperWindows.Count} display(s).");
+    }
+
+    public void SetVolume(int volume, bool isMuted)
+    {
+        if (!Application.Current.Dispatcher.CheckAccess())
+        {
+            Application.Current.Dispatcher.Invoke(() => SetVolume(volume, isMuted));
+            return;
+        }
+
+        foreach (var window in _wallpaperWindows)
+        {
+            window.SetVolume(volume, isMuted);
+        }
+    }
+
+    public void SetPlaybackRate(float rate)
+    {
+        foreach (var window in _wallpaperWindows)
+        {
+            window.SetPlaybackRate(rate);
+        }
     }
 
     public void Pause()
@@ -263,6 +289,33 @@ public sealed class WallpaperService : IDisposable
         }
         
         StatusChanged?.Invoke(this, "Wallpaper stopped.");
+    }
+
+    public void ReapplyWithSettings(PerformanceSettings settings)
+    {
+        if (!Application.Current.Dispatcher.CheckAccess())
+        {
+            Application.Current.Dispatcher.Invoke(() => ReapplyWithSettings(settings));
+            return;
+        }
+
+        if (!IsRunning || string.IsNullOrEmpty(CurrentWallpaperPath))
+        {
+            return;
+        }
+
+        Log("ReapplyWithSettings: Restarting wallpaper engine safely with new settings...");
+        
+        var videoPath = CurrentWallpaperPath;
+        var activeMonitors = _wallpaperWindows.Select(w => w.Monitor.DeviceName).ToList();
+
+        Stop(saveState: false);
+        CurrentWallpaperPath = videoPath; // Temporarily restore it so the UI doesn't flicker
+
+        foreach (var monitorName in activeMonitors)
+        {
+            ApplyWallpaper(videoPath, monitorName, settings);
+        }
     }
 
     public void ClearMonitorWallpaper(string monitorDeviceName)

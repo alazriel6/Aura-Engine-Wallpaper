@@ -16,6 +16,8 @@ namespace LiveWallpaperApp.Views
         private Media? _currentMedia;
         private string? _currentPath;
         private VideoView _videoView;
+        private int _currentVolume = 0;
+        private bool _isMuted = true;
 
         public MonitorInfo Monitor => _monitor;
         public string? CurrentPath => _currentPath;
@@ -32,9 +34,9 @@ namespace LiveWallpaperApp.Views
             this.BackColor = System.Drawing.Color.Black;
             this.AutoScaleMode = AutoScaleMode.None;
             
-            // Set bounds
-            this.Left = monitor.Bounds.Left;
-            this.Top = monitor.Bounds.Top;
+            // Start OFFSCREEN so it never flashes on the user's display
+            this.Left = -32000;
+            this.Top = -32000;
             this.Width = monitor.Bounds.Width;
             this.Height = monitor.Bounds.Height;
 
@@ -67,13 +69,17 @@ namespace LiveWallpaperApp.Views
             if (_mediaPlayer == null)
             {
                 _mediaPlayer = new MediaPlayer(_sharedLibVlc);
-                _videoView.MediaPlayer = _mediaPlayer;
                 _mediaPlayer.EnableHardwareDecoding = true;
                 
                 // Force VLC to crop the video to the monitor's exact aspect ratio
                 // This eliminates black bars on displays with different ratios (e.g. 16:10 vs 16:9)
                 string ratio = $"{_monitor.Bounds.Width}:{_monitor.Bounds.Height}";
                 _mediaPlayer.CropGeometry = ratio;
+                _mediaPlayer.Volume = _currentVolume;
+                _mediaPlayer.Mute = _isMuted;
+                
+                // Set VideoView AFTER all config so VLC uses our HWND from the start
+                _videoView.MediaPlayer = _mediaPlayer;
             }
 
             _currentMedia?.Dispose();
@@ -82,6 +88,26 @@ namespace LiveWallpaperApp.Views
 
             // Asynchronously ensure VLC surfaces become click-through
             StartTransparencyEnforcer();
+        }
+
+        public void SetVolume(int volume, bool isMuted)
+        {
+            _currentVolume = volume;
+            _isMuted = isMuted;
+
+            if (_mediaPlayer is not null)
+            {
+                _mediaPlayer.Volume = volume;
+                _mediaPlayer.Mute = isMuted;
+            }
+        }
+
+        public void SetPlaybackRate(float rate)
+        {
+            if (_mediaPlayer is not null)
+            {
+                _mediaPlayer.SetRate(rate);
+            }
         }
 
         private void StartTransparencyEnforcer()

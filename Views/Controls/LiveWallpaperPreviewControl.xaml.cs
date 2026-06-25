@@ -132,35 +132,43 @@ public partial class LiveWallpaperPreviewControl : UserControl, IDisposable
 
     private void EnsurePlayer()
     {
-        if (_mediaPlayer is not null)
+        var previewVlc = PreviewVlcHost.GetSharedPreviewVlc(PlayerOptions);
+
+        if (_mediaPlayer is null)
+        {
+            _mediaPlayer = new MediaPlayer(previewVlc)
+            {
+                Mute = true,
+                Volume = 0
+            };
+            PreviewVideo.MediaPlayer = _mediaPlayer;
+        }
+
+        if (_media != null && _media.Mrl == new Uri(VideoPath).AbsoluteUri)
         {
             return;
         }
 
-        var previewVlc = PreviewVlcHost.GetSharedPreviewVlc(PlayerOptions);
-        _mediaPlayer = new MediaPlayer(previewVlc)
-        {
-            Mute = true,
-            Volume = 0
-        };
-
-        PreviewVideo.MediaPlayer = _mediaPlayer;
-        _media = new Media(previewVlc, VideoPath, FromType.FromPath);
-        _media.AddOption(":input-repeat=65535");
-        _media.AddOption(":no-audio");
-        _media.AddOption(":file-caching=250");
-        _mediaPlayer.Play(_media);
+        var newMedia = new Media(previewVlc, VideoPath, FromType.FromPath);
+        newMedia.AddOption(":input-repeat=65535");
+        newMedia.AddOption(":no-audio");
+        newMedia.AddOption(":file-caching=250");
+        
+        _media = newMedia;
+        _mediaPlayer.Play(newMedia);
     }
 
     private void RestartPreview()
     {
-        ReleasePlayer();
         SyncPreviewState();
     }
 
     private void ReleasePlayer()
     {
-        PreviewVideo.MediaPlayer = null;
+        if (PreviewVideo.MediaPlayer != null)
+        {
+            PreviewVideo.MediaPlayer = null;
+        }
         _mediaPlayer?.Stop();
         _mediaPlayer?.Dispose();
         _media?.Dispose();

@@ -91,6 +91,9 @@ public static class Win32
     [DllImport("user32.dll")]
     public static extern IntPtr GetForegroundWindow();
 
+    [DllImport("user32.dll")]
+    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool GetWindowRect(IntPtr hWnd, out Rect lpRect);
 
@@ -280,4 +283,149 @@ public static class Win32
             ? TimeSpan.FromMilliseconds((uint)Environment.TickCount - info.Time)
             : TimeSpan.Zero;
     }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+    [DllImport("user32.dll")]
+    public static extern int GetWindowTextLength(IntPtr hWnd);
+
+    /// <summary>
+    /// Finds any stray "VLC (Direct3D11 output)" top-level windows from our process
+    /// and hides them from the taskbar + screen. VLC's D3D11 vout creates these 
+    /// behind our back, causing a giant popup flash.
+    /// </summary>
+    /// <summary>
+    /// Returns a set of all current top-level VLC window handles in our process.
+    /// Call BEFORE Play() to snapshot existing VLC windows.
+    /// </summary>
+    public static HashSet<IntPtr> GetVlcWindowHandles()
+    {
+        var result = new HashSet<IntPtr>();
+        var ourPid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+
+        EnumWindows((hWnd, _) =>
+        {
+            GetWindowThreadProcessId(hWnd, out uint windowPid);
+            if (windowPid != ourPid) return true;
+
+            int len = GetWindowTextLength(hWnd);
+            if (len <= 0) return true;
+
+            var sb = new StringBuilder(len + 1);
+            GetWindowText(hWnd, sb, sb.Capacity);
+            if (sb.ToString().Contains("VLC", StringComparison.OrdinalIgnoreCase))
+            {
+                result.Add(hWnd);
+            }
+            return true;
+        }, IntPtr.Zero);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Suppresses VLC windows that were NOT in the 'before' snapshot.
+    /// Only hides from taskbar and moves offscreen — does NOT SW_HIDE (which would freeze VLC).
+    /// </summary>
+    public static void SuppressNewVlcWindows(HashSet<IntPtr> existingHandles)
+    {
+        var ourPid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+
+        EnumWindows((hWnd, _) =>
+        {
+            // Skip windows that existed before Play()
+            if (existingHandles.Contains(hWnd)) return true;
+
+            GetWindowThreadProcessId(hWnd, out uint windowPid);
+            if (windowPid != ourPid) return true;
+
+            int len = GetWindowTextLength(hWnd);
+            if (len <= 0) return true;
+
+            var sb = new StringBuilder(len + 1);
+            GetWindowText(hWnd, sb, sb.Capacity);
+
+            if (sb.ToString().Contains("VLC", StringComparison.OrdinalIgnoreCase))
+            {
+                // Remove from taskbar
+                var exStyle = GetWindowLongPtr(hWnd, GwlExStyle).ToInt64();
+                exStyle |= WsExToolWindow | WsExNoActivate;
+                exStyle &= ~0x00040000L; // ~WS_EX_APPWINDOW
+                SetWindowLongPtr(hWnd, GwlExStyle, new IntPtr(exStyle));
+
+                // Move offscreen — VLC needs the window alive for D3D11 rendering
+                MoveWindow(hWnd, -32000, -32000, 1, 1, false);
+            }
+            return true;
+        }, IntPtr.Zero);
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct DISPLAY_DEVICE
+    {
+        [MarshalAs(UnmanagedType.U4)]
+        public int cb;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string DeviceName;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string DeviceString;
+        [MarshalAs(UnmanagedType.U4)]
+        public int StateFlags;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string DeviceID;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string DeviceKey;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct DEVMODE
+    {
+        private const int CCHDEVICENAME = 32;
+        private const int CCHFORMNAME = 32;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = CCHDEVICENAME)]
+        public string dmDeviceName;
+        public short dmSpecVersion;
+        public short dmDriverVersion;
+        public short dmSize;
+        public short dmDriverExtra;
+        public int dmFields;
+
+        public int dmPositionX;
+        public int dmPositionY;
+        public int dmDisplayOrientation;
+        public int dmDisplayFixedOutput;
+
+        public short dmColor;
+        public short dmDuplex;
+        public short dmYResolution;
+        public short dmTTOption;
+        public short dmCollate;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = CCHFORMNAME)]
+        public string dmFormName;
+        public short dmLogPixels;
+        public int dmBitsPerPel;
+        public int dmPelsWidth;
+        public int dmPelsHeight;
+        public int dmDisplayFlags;
+        public int dmDisplayFrequency;
+        public int dmICMMethod;
+        public int dmICMIntent;
+        public int dmMediaType;
+        public int dmDitherType;
+        public int dmReserved1;
+        public int dmReserved2;
+        public int dmPanningWidth;
+        public int dmPanningHeight;
+    }
+
+    public const int ENUM_CURRENT_SETTINGS = -1;
+    public const int ENUM_REGISTRY_SETTINGS = -2;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern bool EnumDisplayDevices(string? lpDevice, uint iDevNum, ref DISPLAY_DEVICE lpDisplayDevice, uint dwFlags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern bool EnumDisplaySettings(string? lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
 }

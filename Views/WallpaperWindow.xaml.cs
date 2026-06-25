@@ -16,6 +16,8 @@ public partial class WallpaperWindow : Window, IDisposable
     private Media? _currentMedia;
     private string? _currentPath;
     private bool _disposed;
+    private int _currentVolume = 0;
+    private bool _isMuted = true;
 
     public MonitorInfo Monitor => _monitor;
     public string? CurrentPath => _currentPath;
@@ -107,14 +109,26 @@ public partial class WallpaperWindow : Window, IDisposable
         _libVlc ??= _sharedLibVlc ?? new LibVLC(_vlcOptions.ToArray());
         _mediaPlayer = new MediaPlayer(_libVlc)
         {
-            Mute = true,
-            Volume = 0,
+            Mute = _isMuted,
+            Volume = _currentVolume,
             Fullscreen = false,
             AspectRatio = $"{_monitor.Bounds.Width}:{_monitor.Bounds.Height}",
             Scale = 0
         };
 
         VideoView.MediaPlayer = _mediaPlayer;
+    }
+
+    public void SetVolume(int volume, bool isMuted)
+    {
+        _currentVolume = volume;
+        _isMuted = isMuted;
+
+        if (_mediaPlayer is not null)
+        {
+            _mediaPlayer.Volume = volume;
+            _mediaPlayer.Mute = isMuted;
+        }
     }
 
     protected override void OnClosed(EventArgs e)

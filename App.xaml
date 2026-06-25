@@ -9,56 +9,130 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/MinimalDarkTheme.xaml" />
+                <ResourceDictionary Source="Themes/MonitorPageStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <sys:Double x:Key="GlobalBlurRadius">10</sys:Double>
             <sys:Double x:Key="GlobalGlowRadius">26</sys:Double>
+            <sys:Double x:Key="GlobalGlowOpacity">0.26</sys:Double>
             <sys:Double x:Key="GlobalPanelOpacity">0.72</sys:Double>
             <CornerRadius x:Key="GlobalCornerRadius">18</CornerRadius>
 
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
             <helpers:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
+            <helpers:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+            <helpers:StringNullOrEmptyToVisibilityConverter x:Key="StringNullOrEmptyToVisibilityConverter" />
 
-            <Style x:Key="WindowControlButtonStyle" TargetType="Button">
-                <Setter Property="Width" Value="42" />
-                <Setter Property="Height" Value="32" />
-                <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+            <!-- Default global Button style to prevent ugly default blue hover on unstyled buttons -->
+            <Style TargetType="Button">
                 <Setter Property="Background" Value="Transparent" />
-                <Setter Property="BorderBrush" Value="Transparent" />
-                <Setter Property="BorderThickness" Value="0" />
-                <Setter Property="FontSize" Value="14" />
+                <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
                 <Setter Property="Cursor" Value="Hand" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="Chrome"
-                                    Background="{TemplateBinding Background}"
-                                    CornerRadius="8"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}">
-                                <ContentPresenter HorizontalAlignment="Center"
-                                                  VerticalAlignment="Center" />
-                            </Border>
+                            <Grid TextElement.Foreground="{TemplateBinding Foreground}">
+                                <Border x:Name="Root"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="6" />
+                                <Border x:Name="HoverOverlay" Background="White" Opacity="0" CornerRadius="6" IsHitTestVisible="False" />
+                                <Border x:Name="PressedOverlay" Background="Black" Opacity="0" CornerRadius="6" IsHitTestVisible="False" />
+                                
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  Margin="{TemplateBinding Padding}" />
+                            </Grid>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource HoverPanelBrush}" />
-                                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                                    <Setter TargetName="HoverOverlay" Property="Opacity" Value="0.06" />
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="Chrome" Property="Opacity" Value="0.82" />
+                                    <Setter TargetName="PressedOverlay" Property="Opacity" Value="0.15" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.45" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
             </Style>
-
-            <Style x:Key="ChromeCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource WindowControlButtonStyle}">
-                <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+            <Style x:Key="TransparentButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
                 <Style.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="Background" Value="#E8505B" />
+                        <Setter Property="Opacity" Value="0.8" />
+                    </Trigger>
+                    <Trigger Property="IsPressed" Value="True">
+                        <Setter Property="Opacity" Value="0.6" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="WindowControlButtonStyle" TargetType="Button">
+                <Setter Property="Width" Value="36" />
+                <Setter Property="Height" Value="28" />
+                <Setter Property="Margin" Value="2,0" />
+                <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Chrome"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="6"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center" />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#1AFFFFFF" />
+                        <Setter Property="BorderBrush" Value="#33FFFFFF" />
                         <Setter Property="Foreground" Value="White" />
+                    </Trigger>
+                    <Trigger Property="IsPressed" Value="True">
+                        <Setter Property="Background" Value="#0DFFFFFF" />
+                        <Setter Property="BorderBrush" Value="Transparent" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="ChromeCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource WindowControlButtonStyle}">
+                <Setter Property="Margin" Value="2,0,0,0" />
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#E81123" />
+                        <Setter Property="BorderBrush" Value="#F1707A" />
+                        <Setter Property="Foreground" Value="White" />
+                    </Trigger>
+                    <Trigger Property="IsPressed" Value="True">
+                        <Setter Property="Background" Value="#8B0A14" />
+                        <Setter Property="BorderBrush" Value="Transparent" />
+                        <Setter Property="Foreground" Value="#AAAAAA" />
                     </Trigger>
                 </Style.Triggers>
             </Style>
@@ -156,33 +230,36 @@
             </Style>
 
             <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+
                 <Setter Property="Height" Value="44" />
                 <Setter Property="MinWidth" Value="132" />
                 <Setter Property="Padding" Value="18,0" />
-                <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+                <Setter Property="Foreground" Value="#0F172A" />
                 <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
                 <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                 <Setter Property="BorderThickness" Value="1" />
                 <Setter Property="Cursor" Value="Hand" />
                 <Setter Property="FontWeight" Value="SemiBold" />
+                
                 <Setter Property="ContentTemplate">
                     <Setter.Value>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}" Foreground="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource AncestorType=ContentPresenter}}" />
+                            <TextBlock Text="{Binding}" Foreground="#0F172A" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </DataTemplate>
                     </Setter.Value>
                 </Setter>
+
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Grid x:Name="ButtonRoot" RenderTransformOrigin="0.5,0.5">
+                            <Grid x:Name="ButtonRoot" RenderTransformOrigin="0.5,0.5" TextElement.Foreground="{TemplateBinding Foreground}">
                                 <Grid.RenderTransform>
                                     <ScaleTransform x:Name="ButtonScale" ScaleX="1" ScaleY="1" />
                                 </Grid.RenderTransform>
                                 <!-- Subtle Elevation Shadow -->
                                 <Border Background="{TemplateBinding Background}" CornerRadius="12">
                                     <Border.Effect>
-                                        <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="1.5" Opacity="0.15" Direction="270" />
+                                        <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="1.5" Opacity="0.15" Direction="270" RenderingBias="Performance" />
                                     </Border.Effect>
                                 </Border>
 
@@ -207,7 +284,7 @@
                                     <!-- Base static glow ring -->
                                     <Border CornerRadius="12" BorderThickness="1.5" BorderBrush="#556366f1">
                                         <Border.Effect>
-                                            <DropShadowEffect Color="#4f46e5" BlurRadius="6" ShadowDepth="0" Opacity="0.6" />
+                                            <DropShadowEffect Color="#4f46e5" BlurRadius="6" ShadowDepth="0" Opacity="0.6" RenderingBias="Performance" />
                                         </Border.Effect>
                                     </Border>
 
@@ -227,7 +304,7 @@
                                             </LinearGradientBrush>
                                         </Border.BorderBrush>
                                         <Border.Effect>
-                                            <DropShadowEffect Color="{DynamicResource AccentColor}" BlurRadius="6" ShadowDepth="0" Opacity="1" />
+                                            <DropShadowEffect Color="{DynamicResource AccentColor}" BlurRadius="6" ShadowDepth="0" Opacity="1" RenderingBias="Performance" />
                                         </Border.Effect>
                                     </Border>
 
@@ -247,7 +324,7 @@
                                             </LinearGradientBrush>
                                         </Border.BorderBrush>
                                         <Border.Effect>
-                                            <DropShadowEffect Color="{DynamicResource BorderGlowColor}" BlurRadius="6" ShadowDepth="0" Opacity="1" />
+                                            <DropShadowEffect Color="{DynamicResource BorderGlowColor}" BlurRadius="6" ShadowDepth="0" Opacity="1" RenderingBias="Performance" />
                                         </Border.Effect>
                                     </Border>
                                 </Grid>
@@ -310,6 +387,7 @@
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
                 <Setter Property="Background" Value="{DynamicResource SoftPanelBrush}" />
                 <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                <Setter Property="ContentTemplate" Value="{x:Null}" />
             </Style>
 
             <Style TargetType="TextBox">
@@ -342,6 +420,33 @@
                 </Setter>
             </Style>
 
+            <Style TargetType="ToolTip">
+                <Setter Property="Background" Value="#1E293B" />
+                <Setter Property="Foreground" Value="#E2E8F0" />
+                <Setter Property="BorderBrush" Value="#33FFFFFF" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Padding" Value="10,6" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="HasDropShadow" Value="True" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToolTip">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}"
+                                    TextElement.Foreground="{TemplateBinding Foreground}">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.3" RenderingBias="Performance" />
+                                </Border.Effect>
+                                <ContentPresenter />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <Style TargetType="ComboBoxItem">
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
                 <Setter Property="Background" Value="Transparent" />
@@ -352,7 +457,8 @@
                             <Border x:Name="Root"
                                     Background="{TemplateBinding Background}"
                                     CornerRadius="8"
-                                    Padding="{TemplateBinding Padding}">
+                                    Padding="{TemplateBinding Padding}"
+                                    TextElement.Foreground="{TemplateBinding Foreground}">
                                 <ContentPresenter />
                             </Border>
                             <ControlTemplate.Triggers>
@@ -391,7 +497,8 @@
                                                     Background="{TemplateBinding Background}"
                                                     BorderBrush="{TemplateBinding BorderBrush}"
                                                     BorderThickness="1"
-                                                    CornerRadius="10">
+                                                    CornerRadius="10"
+                                                    TextElement.Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBox}}">
                                                 <Grid>
                                                     <ContentPresenter Margin="{Binding Padding, RelativeSource={RelativeSource AncestorType=ComboBox}}"
                                                                       Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
@@ -441,7 +548,7 @@
                                             <DropShadowEffect Color="{DynamicResource BorderGlowColor}"
                                                               BlurRadius="{DynamicResource GlobalGlowRadius}"
                                                               ShadowDepth="0"
-                                                              Opacity="0.35" />
+                                                              Opacity="0.35" RenderingBias="Performance" />
                                         </Border.Effect>
                                         <ScrollViewer MaxHeight="{TemplateBinding MaxDropDownHeight}">
                                             <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
@@ -535,7 +642,7 @@
                                                             <ScaleTransform x:Name="ThumbScale" ScaleX="1" ScaleY="1" />
                                                         </Border.RenderTransform>
                                                         <Border.Effect>
-                                                            <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="1" Opacity="0.3" />
+                                                            <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="1" Opacity="0.3" RenderingBias="Performance" />
                                                         </Border.Effect>
                                                     </Border>
                                                     <ControlTemplate.Triggers>
@@ -601,7 +708,7 @@
                             <Border Background="{TemplateBinding Background}" CornerRadius="3">
                                 <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="3">
                                     <Border.Effect>
-                                        <DropShadowEffect Color="{DynamicResource BorderGlowColor}" BlurRadius="8" ShadowDepth="0" Opacity="0.6" />
+                                        <DropShadowEffect Color="{DynamicResource BorderGlowColor}" BlurRadius="8" ShadowDepth="0" Opacity="0.6" RenderingBias="Performance" />
                                     </Border.Effect>
                                 </Border>
                             </Border>
@@ -627,7 +734,8 @@
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
                                     CornerRadius="6"
-                                    Padding="4">
+                                    Padding="4"
+                                    TextElement.Foreground="{TemplateBinding Foreground}">
                                 <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled">
                                     <ItemsPresenter />
                                 </ScrollViewer>
@@ -646,7 +754,8 @@
                             <Border x:Name="Root"
                                     Background="{TemplateBinding Background}"
                                     CornerRadius="4"
-                                    Padding="10,6">
+                                    Padding="10,6"
+                                    TextElement.Foreground="{TemplateBinding Foreground}">
                                 <ContentPresenter ContentSource="Header" />
                             </Border>
                             <ControlTemplate.Triggers>

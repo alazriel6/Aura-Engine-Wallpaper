@@ -30,6 +30,34 @@ public sealed class PerformanceService : IDisposable
 
     public SystemPerformanceSnapshot Current { get; private set; } = new();
 
+    public string CpuName 
+    {
+        get 
+        {
+            var rawName = _computer?.Hardware.FirstOrDefault(h => h.HardwareType == HardwareType.Cpu)?.Name ?? Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ?? "Unknown CPU";
+            int wIndex = rawName.IndexOf(" w/ ", StringComparison.OrdinalIgnoreCase);
+            if (wIndex > 0) rawName = rawName.Substring(0, wIndex);
+            return rawName;
+        }
+    }
+
+    public string GpuName 
+    {
+        get 
+        {
+            if (_computer is null) return "Unknown GPU";
+            var gpus = _computer.Hardware
+                .Where(h => h.HardwareType is HardwareType.GpuAmd or HardwareType.GpuIntel or HardwareType.GpuNvidia)
+                .Select(h => h.Name)
+                .OrderByDescending(g => g.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase) || g.Contains("RTX", StringComparison.OrdinalIgnoreCase) || g.Contains("RX ", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            
+            return gpus.Count > 0 ? string.Join(" + ", gpus) : "Unknown GPU";
+        }
+    }
+
+    public string TotalRam => $"{Math.Round(QueryMemory().TotalPhysical / 1024.0 / 1024.0 / 1024.0)} GB";
+
     public void Start(bool detailedHardwareSensors = false)
     {
         if (detailedHardwareSensors)
@@ -182,13 +210,13 @@ public sealed class PerformanceService : IDisposable
                 if (sensor.SensorType == SensorType.SmallData
                     && sensor.Name.Contains("GPU Memory Used", StringComparison.OrdinalIgnoreCase))
                 {
-                    snapshot.VramUsedMb = Math.Max(snapshot.VramUsedMb, value * 1024);
+                    snapshot.VramUsedMb = Math.Max(snapshot.VramUsedMb, value);
                 }
 
                 if (sensor.SensorType == SensorType.SmallData
                     && sensor.Name.Contains("GPU Memory Total", StringComparison.OrdinalIgnoreCase))
                 {
-                    snapshot.VramTotalMb = Math.Max(snapshot.VramTotalMb, value * 1024);
+                    snapshot.VramTotalMb = Math.Max(snapshot.VramTotalMb, value);
                 }
             }
         }

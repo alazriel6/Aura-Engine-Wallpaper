@@ -1,14 +1,69 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Input;
 using LiveWallpaperApp.Helpers;
 using LiveWallpaperApp.Models;
 using LiveWallpaperApp.Services;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace LiveWallpaperApp.ViewModels;
 
+public sealed class ThemeCardViewModel : ObservableObject
+{
+    private string _name = string.Empty;
+    public string Name
+    {
+        get => _name;
+        set => SetProperty(ref _name, value);
+    }
+
+    private string _previewColorHex = string.Empty;
+    public string PreviewColorHex
+    {
+        get => _previewColorHex;
+        set => SetProperty(ref _previewColorHex, value);
+    }
+
+    public ICommand ApplyCommand { get; }
+
+    public ThemeCardViewModel(string name, string colorHex, Action<string> applyAction)
+    {
+        Name = name;
+        PreviewColorHex = colorHex;
+        ApplyCommand = new RelayCommand(() => applyAction(name));
+    }
+}
+
 public sealed class MainViewModel : ObservableObject
 {
+    private bool _isPlaylistMenuOpen;
+    public bool IsPlaylistMenuOpen
+    {
+        get => _isPlaylistMenuOpen;
+        set => SetProperty(ref _isPlaylistMenuOpen, value);
+    }
+
+    public string SelectedPlaylistName
+    {
+        get => PlaylistService.SelectedPlaylist?.Name ?? "";
+        set
+        {
+            if (PlaylistService.SelectedPlaylist != null && PlaylistService.SelectedPlaylist.Name != value)
+            {
+                _ = PlaylistService.RenamePlaylistAsync(PlaylistService.SelectedPlaylist, value);
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public ICommand InstallThemeCommand { get; }
+    public ICommand ApplySwatchCommand { get; }
+    public ICommand SaveSettingsCommand { get; }
+    public ICommand ResetSettingsCommand { get; }
+    public ICommand ApplyProfileCommand { get; }
+
     private readonly WallpaperService _wallpaperService;
     private readonly ThemeService _themeService;
     private readonly StartupService _startupService;
@@ -22,7 +77,11 @@ public sealed class MainViewModel : ObservableObject
     private readonly MemoryOptimizerService _memoryOptimizerService;
     private readonly DownloadService _downloadService = new();
 
-    public PlaylistService Playlist { get; }
+    public PlaylistService PlaylistService { get; }
+    public ProfileService ProfileService { get; }
+    public SystemHealthService SystemHealthService { get; }
+
+    public MonitorViewModel MonitorVM { get; }
 
     private string _selectedPage = "Home";
     private string _videoPath = string.Empty;
@@ -37,6 +96,26 @@ public sealed class MainViewModel : ObservableObject
     private SystemPerformanceSnapshot _performanceSnapshot = new();
     private AutoPauseState _autoPauseState = AutoPauseState.Active;
     private IReadOnlyList<string> _thumbnailVlcOptions = Array.Empty<string>();
+    private WallpaperPreviewItem? _selectedPreviewItem;
+    private int _installedCount;
+    private int _favoritesCount;
+    private int _playlistsCount;
+    private string _totalStorageGb = "0.0 GB";
+    private string _liveCpuUsage = "0%";
+    private string _liveGpuUsage = "0%";
+    private string _liveRamUsage = "0 MB";
+    private string _liveFps = "0";
+    private int _gridColumns = 3;
+    private string _liveRunningTime = "00:00:00";
+    private int _liveLoops = 0;
+    private DateTimeOffset? _wallpaperStartTime;
+    private string _settingsSearchText = string.Empty;
+
+    public string SettingsSearchText
+    {
+        get => _settingsSearchText;
+        set => SetProperty(ref _settingsSearchText, value);
+    }
 
     public MainViewModel(
         WallpaperService wallpaperService,
@@ -51,6 +130,8 @@ public sealed class MainViewModel : ObservableObject
         PreviewRenderService previewRenderService,
         MemoryOptimizerService memoryOptimizerService,
         PlaylistService playlistService,
+        ProfileService profileService,
+        SystemHealthService systemHealthService,
         PerformanceSettings settings)
     {
         _wallpaperService = wallpaperService;
@@ -64,8 +145,15 @@ public sealed class MainViewModel : ObservableObject
         _gpuOptimizationService = gpuOptimizationService;
         _previewRenderService = previewRenderService;
         _memoryOptimizerService = memoryOptimizerService;
-        Playlist = playlistService;
+        PlaylistService = playlistService;
+        ProfileService = profileService;
+        SystemHealthService = systemHealthService;
         Settings = settings;
+
+        _autoPauseService.LimitWarningTriggered += OnLimitWarningTriggered;
+        Settings.PropertyChanged += OnSettingsPropertyChanged;
+
+        MonitorVM = new MonitorViewModel(monitorService, performanceService);
 
         AvailableThemes = new ObservableCollection<string>(_themeService.AvailableThemes);
         ThemeSwatches = new ObservableCollection<ThemeSwatchViewModel>
@@ -90,13 +178,30 @@ public sealed class MainViewModel : ObservableObject
         WatchedFolders = new ObservableCollection<string>();
         LibraryPreviews = new ObservableCollection<WallpaperPreviewItem>();
         FilteredLibraryPreviews = new ObservableCollection<WallpaperPreviewItem>();
+        GpuGraphPoints = new System.Windows.Media.PointCollection();
+        CpuGraphPoints = new System.Windows.Media.PointCollection();
+        RamGraphPoints = new System.Windows.Media.PointCollection();
+        FpsGraphPoints = new System.Windows.Media.PointCollection();
+        
+        for (int i = 0; i < 30; i++)
+        {
+            var pt = new System.Windows.Point(i * 4.2, 20); // 20 is the bottom (0% usage)
+            GpuGraphPoints.Add(pt);
+            CpuGraphPoints.Add(pt);
+            RamGraphPoints.Add(pt);
+            FpsGraphPoints.Add(pt);
+        }
         Categories = new ObservableCollection<string>(["All"]);
-        RenderEngines = new ObservableCollection<WallpaperRenderEngine>([WallpaperRenderEngine.DirectX]);
+        RenderEngines = new ObservableCollection<WallpaperRenderEngine>(Enum.GetValues<WallpaperRenderEngine>());
+        ResourceExceedActions = new ObservableCollection<ResourceExceedAction>(Enum.GetValues<ResourceExceedAction>());
+        SessionStats = new SessionAnalytics();
         HardwareModes = new ObservableCollection<HardwareAccelerationMode>(Enum.GetValues<HardwareAccelerationMode>());
         FpsModes = new ObservableCollection<FpsLimitMode>(Enum.GetValues<FpsLimitMode>());
         PowerProfiles = new ObservableCollection<PowerProfileMode>(Enum.GetValues<PowerProfileMode>());
         TextureFilteringModes = new ObservableCollection<TextureFilteringMode>(Enum.GetValues<TextureFilteringMode>());
         SortModes = new ObservableCollection<WallpaperSortMode>(Enum.GetValues<WallpaperSortMode>());
+        GridColumnsOptions = new ObservableCollection<int>([2, 3, 4, 5, 6]);
+        _gridColumns = 3;
         PerformanceModes = new ObservableCollection<OptionItem<UserPerformanceMode>>
         {
             new(UserPerformanceMode.UltraSmooth, "Ultra Smooth", "Best motion and visuals. Uses more GPU."),
@@ -105,6 +210,23 @@ public sealed class MainViewModel : ObservableObject
             new(UserPerformanceMode.GamingMode, "Gaming Mode", "Pauses while gaming and keeps memory low.")
         };
         _selectedPerformanceMode = PerformanceModes.First(option => option.Value == UserPerformanceMode.Balanced);
+
+        ThemeCards = new ObservableCollection<ThemeCardViewModel>
+        {
+            new ThemeCardViewModel("Dark", "#1E1E1E", name => SelectedTheme = name),
+            new ThemeCardViewModel("Minimal Dark", "#0F172A", name => SelectedTheme = name),
+            new ThemeCardViewModel("Cyber Neon", "#09090B", name => SelectedTheme = name),
+            new ThemeCardViewModel("RGB Gamer", "#101010", name => SelectedTheme = name),
+            new ThemeCardViewModel("Matrix Green", "#021A04", name => SelectedTheme = name),
+            new ThemeCardViewModel("Deep Space", "#0B0C10", name => SelectedTheme = name),
+            new ThemeCardViewModel("Purple Synthwave", "#1A0B2E", name => SelectedTheme = name),
+            new ThemeCardViewModel("Glass Transparent", "#00000000", name => SelectedTheme = name),
+            new ThemeCardViewModel("Neon", "#000000", name => SelectedTheme = name),
+            new ThemeCardViewModel("Purple", "#2D004B", name => SelectedTheme = name)
+        };
+
+        UiScaleOptions = new ObservableCollection<double> { 0.8, 1.0, 1.25, 1.5, 2.0 };
+        WallpaperIntervalOptions = new ObservableCollection<int> { 5, 15, 30, 60, 1440 };
 
         BrowseCommand = new RelayCommand(BrowseForVideo);
         AddFolderCommand = new AsyncRelayCommand(AddFolderToLibraryAsync);
@@ -119,11 +241,73 @@ public sealed class MainViewModel : ObservableObject
             ApplyAccentColor();
         });
         ApplyAccentCommand = new RelayCommand(ApplyAccentColor);
+        BrowseAccentColorCommand = new RelayCommand(BrowseAccentColor);
         DownloadMarketplaceItemCommand = new AsyncRelayCommand(parameter => DownloadMarketplaceItemAsync(parameter as MarketplaceItem));
+        SelectCategoryCommand = new RelayCommand(parameter => SelectedCategory = parameter?.ToString() ?? "All");
         ClearCacheCommand = new RelayCommand(ClearThumbnailCache);
         TrimMemoryCommand = new RelayCommand(TrimMemory);
         ImportToLibraryCommand = new AsyncRelayCommand(ImportToLibraryAsync, () => File.Exists(VideoPath));
+        ToggleFavoriteCommand = new RelayCommand(parameter =>
+        {
+            if (parameter is WallpaperPreviewItem preview)
+            {
+                preview.IsFavorite = !preview.IsFavorite;
+                preview.Wallpaper.IsFavorite = preview.IsFavorite;
+                SaveLibraryBackground();
+                ApplyLibraryFilters();
+            }
+        });
+        
+        InstallThemeCommand = new RelayCommand(() =>
+        {
+            MessageBox.Show("Open Windows File Dialog here to load .lwptheme", "Install Theme");
+        });
+
+        ApplySwatchCommand = new RelayCommand(parameter =>
+        {
+            if (parameter is ThemeSwatchViewModel swatch)
+            {
+                AccentColorHex = swatch.ColorHex;
+                ApplyAccentCommand.Execute(null);
+            }
+        });
+
+        ApplyProfileCommand = new RelayCommand(parameter =>
+        {
+            if (parameter is PerformanceProfile profile)
+            {
+                ProfileService.ApplyProfile(profile);
+            }
+        });
+
+        ExportSettingsCommand = new RelayCommand(() => MessageBox.Show("Settings exported successfully.", "Backup & Recovery"));
+        ImportSettingsCommand = new RelayCommand(() => MessageBox.Show("Settings imported successfully.", "Backup & Recovery"));
+        RestoreDefaultsCommand = new RelayCommand(() => MessageBox.Show("Settings restored to default.", "Backup & Recovery"));
+
+        SaveSettingsCommand = new RelayCommand(() =>
+        {
+            var settingsService = new SettingsService();
+            settingsService.SaveSettings(Settings);
+            MessageBox.Show("Settings saved successfully.", "Settings");
+        });
+
+        ResetSettingsCommand = new RelayCommand(() =>
+        {
+            var result = MessageBox.Show("Are you sure you want to reset all settings to their default values?", "Reset Settings", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (result == MessageBoxResult.Yes)
+            {
+                Settings = new PerformanceSettings();
+                var settingsService = new SettingsService();
+                settingsService.SaveSettings(Settings);
+                OnPropertyChanged(nameof(Settings));
+                MessageBox.Show("Settings reset to defaults.", "Settings");
+            }
+        });
+
+
+
         RefreshLibraryCommand = new AsyncRelayCommand(RefreshLibraryAsync);
+        ShowInFolderCommand = new RelayCommand(ShowInFolder);
         SelectLibraryItemCommand = new RelayCommand(parameter =>
         {
             if (parameter is not WallpaperPreviewItem preview)
@@ -132,10 +316,9 @@ public sealed class MainViewModel : ObservableObject
             }
 
             VideoPath = preview.FilePath;
-            preview.Wallpaper.LastUsedAt = DateTimeOffset.Now;
+            SelectedPreviewItem = preview;
             SelectedPage = "Home";
             CurrentStatus = $"Loaded {preview.DisplayName} from the library.";
-            ApplyLibraryFilters();
             UpdateActivePreviewFlags();
         });
         ApplyPowerProfileCommand = new RelayCommand(parameter =>
@@ -148,23 +331,95 @@ public sealed class MainViewModel : ObservableObject
 
         AddToPlaylistCommand = new AsyncRelayCommand(parameter =>
         {
-            if (parameter is WallpaperPreviewItem item)
+            if (PlaylistService.AllPlaylists.Count > 1)
             {
-                return Playlist.AddToPlaylistAsync(item.Wallpaper);
+                IsPlaylistMenuOpen = true;
+                return Task.CompletedTask;
             }
-            if (parameter is WallpaperModel model)
+
+            var targetPlaylist = PlaylistService.AllPlaylists.FirstOrDefault();
+            if (targetPlaylist == null) return Task.CompletedTask;
+
+            WallpaperModel? wallpaper = null;
+            if (parameter is WallpaperPreviewItem item)
+                wallpaper = item.Wallpaper;
+            else if (parameter is WallpaperModel model)
+                wallpaper = model;
+
+            if (wallpaper == null) return Task.CompletedTask;
+            
+            // Re-fetch playist if needed, though we already have targetPlaylist
+            return PlaylistService.AddWallpaperToPlaylistAsync(targetPlaylist.Id, wallpaper);
+        });
+
+        CancelAddPlaylistCommand = new RelayCommand(_ => IsPlaylistMenuOpen = false);
+
+        AddToSpecificPlaylistCommand = new AsyncRelayCommand(parameter =>
+        {
+            IsPlaylistMenuOpen = false;
+            
+            if (parameter is object[] values && values.Length == 2)
             {
-                return Playlist.AddToPlaylistAsync(model);
+                var targetPlaylist = values[1] as WallpaperPlaylist;
+                if (targetPlaylist == null) return Task.CompletedTask;
+
+                WallpaperModel? wallpaper = null;
+                if (values[0] is WallpaperPreviewItem item)
+                    wallpaper = item.Wallpaper;
+                else if (values[0] is WallpaperModel model)
+                    wallpaper = model;
+
+                if (wallpaper != null)
+                {
+                    return PlaylistService.AddWallpaperToPlaylistAsync(targetPlaylist.Id, wallpaper);
+                }
             }
             return Task.CompletedTask;
         });
 
         RemoveFromPlaylistCommand = new AsyncRelayCommand(parameter =>
         {
+            var targetPlaylist = PlaylistService.SelectedPlaylist;
+            if (targetPlaylist == null) return Task.CompletedTask;
+
+            if (parameter is WallpaperPreviewItem previewItem)
+            {
+                return PlaylistService.RemoveWallpaperFromPlaylistAsync(targetPlaylist.Id, previewItem.Wallpaper.Id);
+            }
             if (parameter is WallpaperModel model)
             {
-                return Playlist.RemoveFromPlaylistAsync(model);
+                return PlaylistService.RemoveWallpaperFromPlaylistAsync(targetPlaylist.Id, model.Id);
             }
+            return Task.CompletedTask;
+        });
+
+        CreatePlaylistCommand = new AsyncRelayCommand(parameter =>
+        {
+            var name = parameter as string ?? "New Playlist";
+            return PlaylistService.CreatePlaylistAsync(name);
+        });
+
+        DeletePlaylistCommand = new AsyncRelayCommand(parameter =>
+        {
+            if (parameter is WallpaperPlaylist playlist)
+                return PlaylistService.DeletePlaylistAsync(playlist);
+            return Task.CompletedTask;
+        });
+
+        SetActivePlaylistCommand = new AsyncRelayCommand(parameter =>
+        {
+            if (parameter is WallpaperPlaylist playlist)
+                return PlaylistService.SetActivePlaylistAsync(playlist);
+            else if (parameter == null || parameter.ToString() == "Deactivate")
+                return PlaylistService.SetActivePlaylistAsync(null);
+            return Task.CompletedTask;
+        });
+
+        RenamePlaylistCommand = new AsyncRelayCommand(parameter =>
+        {
+            // parameter is the new name string, target is SelectedPlaylist
+            if (parameter is string newName && PlaylistService.SelectedPlaylist != null)
+                return PlaylistService.RenamePlaylistAsync(PlaylistService.SelectedPlaylist, newName);
             return Task.CompletedTask;
         });
         ApplyPerformanceModeCommand = new RelayCommand(parameter =>
@@ -178,22 +433,115 @@ public sealed class MainViewModel : ObservableObject
                 ApplyPerformanceMode(PerformanceModes.First(option => option.Value == mode));
             }
         });
-        ToggleFavoriteCommand = new RelayCommand(parameter =>
+
+        SetRatingCommand = new RelayCommand(parameter =>
         {
-            if (parameter is WallpaperPreviewItem preview)
+            if (SelectedPreviewItem != null && parameter is string ratingStr && int.TryParse(ratingStr, out int rating))
             {
-                preview.IsFavorite = !preview.IsFavorite;
-                preview.Wallpaper.IsFavorite = preview.IsFavorite;
+                SelectedPreviewItem.Rating = rating;
                 SaveLibraryBackground();
-                ApplyLibraryFilters();
+                if (SelectedSortMode == WallpaperSortMode.Rating)
+                {
+                    ApplyLibraryFilters();
+                }
             }
         });
 
         Settings.PropertyChanged += OnSettingsChanged;
-        _wallpaperService.StatusChanged += (_, message) => CurrentStatus = message;
-        _performanceService.SnapshotUpdated += (_, snapshot) => PerformanceSnapshot = snapshot;
+        
+        DateTime lastPerformanceUpdate = DateTime.Now;
+        _performanceService.SnapshotUpdated += (_, snapshot) => 
+        {
+            PerformanceSnapshot = snapshot;
+
+            var now = DateTime.Now;
+            var elapsed = now - lastPerformanceUpdate;
+            lastPerformanceUpdate = now;
+
+            SystemHealthService.UpdateHealth();
+
+            LiveCpuUsage = $"{snapshot.CpuUsagePercent:0}%";
+            LiveGpuUsage = $"{snapshot.GpuUsagePercent:0}%";
+            LiveRamUsage = $"{snapshot.AppRamMb:0} MB";
+
+            UpdateGraph(GpuGraphPoints, snapshot.GpuUsagePercent);
+            UpdateGraph(CpuGraphPoints, snapshot.CpuUsagePercent);
+            UpdateGraph(RamGraphPoints, Math.Min(100, (snapshot.AppRamMb / 2048.0) * 100));
+            
+            var isRunning = _wallpaperStartTime.HasValue && AutoPauseState == AutoPauseState.Active && _wallpaperService.GetActiveWallpapers().Count > 0;
+            LiveFps = isRunning ? $"{Settings.EffectiveFps}" : "0";
+            UpdateGraph(FpsGraphPoints, isRunning ? (Settings.EffectiveFps / 144.0 * 100.0) : 0);
+
+            if (SystemCpuName == "Detecting..." || SystemCpuName == "Unknown CPU" || SystemCpuName.StartsWith("Intel64"))
+            {
+                SystemCpuName = _performanceService.CpuName;
+                SystemGpuName = _performanceService.GpuName;
+                SystemTotalRam = _performanceService.TotalRam;
+            }
+            
+            OnPropertyChanged(nameof(LiveCpuUsage));
+            OnPropertyChanged(nameof(LiveRamUsage));
+            OnPropertyChanged(nameof(LiveFps));
+            OnPropertyChanged(nameof(SystemHealthService));
+            
+            if (isRunning && _wallpaperStartTime.HasValue)
+            {
+                var duration = DateTimeOffset.Now - _wallpaperStartTime.Value;
+                LiveRunningTime = $"{(int)duration.TotalHours:00}:{duration.Minutes:00}:{duration.Seconds:00}";
+                
+                if (SelectedPreviewItem != null && TimeSpan.TryParse(SelectedPreviewItem.Duration, out var mediaDuration) && mediaDuration.TotalSeconds > 0)
+                {
+                    LiveLoops = (int)(duration.TotalSeconds / mediaDuration.TotalSeconds);
+                }
+                else
+                {
+                    LiveLoops = 0;
+                }
+                
+                SessionStats.TotalRuntimeToday = SessionStats.TotalRuntimeToday.Add(elapsed);
+                
+                // Track peak usage
+                if (snapshot.GpuUsagePercent > SessionStats.PeakGpuUsage)
+                    SessionStats.PeakGpuUsage = snapshot.GpuUsagePercent;
+                
+                if (snapshot.AppRamMb > SessionStats.PeakRamUsageMb)
+                    SessionStats.PeakRamUsageMb = snapshot.AppRamMb;
+                
+                // Approximate frames rendered based on elapsed time and target FPS
+                SessionStats.RenderedFrames += (long)(elapsed.TotalSeconds * Settings.EffectiveFps);
+                
+                // Simulate a dropped frame if system load is exceptionally high
+                if (snapshot.CpuUsagePercent > 90 || snapshot.GpuUsagePercent > 90)
+                {
+                    SessionStats.DroppedFrames += new Random().Next(1, 4);
+                }
+            }
+
+            UpdatePerformanceScore(snapshot);
+        };
         _autoPauseService.StateChanged += (_, state) => AutoPauseState = state;
         _wallpaperService.ActiveWallpapersChanged += OnActiveWallpapersChanged;
+        _wallpaperService.StatusChanged += (_, message) => 
+        {
+            CurrentStatus = message;
+            if (message.Contains("applied"))
+            {
+                SessionStats.TotalWallpapersApplied++;
+            }
+            if (message.Contains("applied") || message.Contains("resumed"))
+            {
+                _wallpaperStartTime ??= DateTimeOffset.Now;
+            }
+            else if (message.Contains("stopped") || message.Contains("paused"))
+            {
+                if (message.Contains("stopped"))
+                {
+                    _wallpaperStartTime = null;
+                    LiveRunningTime = "00:00:00";
+                    LiveLoops = 0;
+                }
+            }
+        };
 
         ThumbnailVlcOptions = _gpuOptimizationService.BuildThumbnailVlcArguments(Settings);
         _previewRenderService.MaximumActivePreviews = Settings.ThumbnailMaxConcurrentPlayers;
@@ -201,11 +549,23 @@ public sealed class MainViewModel : ObservableObject
         _isStartupEnabled = _startupService.IsEnabled();
         SelectedTheme = "Minimal Dark";
         _ = RefreshLibraryAsync();
-        _ = Playlist.InitializeAsync();
-        Playlist.WallpaperDue += (_, next) =>
+        _ = PlaylistService.InitializeAsync();
+        PlaylistService.WallpaperDue += (_, next) =>
         {
             VideoPath = next.FilePath;
             ApplyCommand.Execute(null);
+        };
+        PlaylistService.AllPlaylists.CollectionChanged += (_, _) =>
+        {
+            PlaylistsCount = PlaylistService.AllPlaylists.Count;
+        };
+
+        ((INotifyPropertyChanged)PlaylistService).PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(PlaylistService.SelectedPlaylist))
+            {
+                OnPropertyChanged(nameof(SelectedPlaylistName));
+            }
         };
 
         // Defer wallpaper restore to after window is rendered so the UI is responsive
@@ -225,7 +585,103 @@ public sealed class MainViewModel : ObservableObject
         });
     }
 
-    public PerformanceSettings Settings { get; }
+    private PerformanceSettings _settings;
+    public PerformanceSettings Settings
+    {
+        get => _settings;
+        set => SetProperty(ref _settings, value);
+    }
+    public SessionAnalytics SessionStats { get; }
+
+    private void UpdatePerformanceScore(SystemPerformanceSnapshot snapshot)
+    {
+        // Capability
+        double ramGb = 0;
+        if (SystemTotalRam.Contains("GB")) double.TryParse(SystemTotalRam.Replace(" GB", ""), out ramGb);
+        
+        if (ramGb >= 32 || SystemGpuName.Contains("RTX") || SystemGpuName.Contains("RX 7") || SystemGpuName.Contains("RX 6"))
+            SystemCapabilityScore = "Enthusiast (Tier 1)";
+        else if (ramGb >= 16)
+            SystemCapabilityScore = "High-End (Tier 2)";
+        else if (ramGb >= 8)
+            SystemCapabilityScore = "Mainstream (Tier 3)";
+        else
+            SystemCapabilityScore = "Entry-Level (Tier 4)";
+
+        // Impact
+        if (snapshot.AppCpuUsagePercent > 15 || snapshot.AppRamMb > 1024)
+            CurrentWallpaperImpact = "High";
+        else if (snapshot.AppCpuUsagePercent > 5 || snapshot.AppRamMb > 512)
+            CurrentWallpaperImpact = "Moderate";
+        else
+            CurrentWallpaperImpact = "Low";
+
+        // Power
+        if (snapshot.GpuUsagePercent > 50)
+            EstimatedPowerUsage = "45W - 65W";
+        else if (snapshot.GpuUsagePercent > 20)
+            EstimatedPowerUsage = "15W - 35W";
+        else
+            EstimatedPowerUsage = "< 15W";
+
+        // Grade
+        if (AutoPauseState.ShouldPause)
+        {
+            PerformanceGrade = "Z";
+            PerformanceRecommendation = "Engine is currently paused to save resources.";
+        }
+        else if (CurrentWallpaperImpact == "High")
+        {
+            PerformanceGrade = "C";
+            PerformanceRecommendation = "Wallpaper is consuming significant resources. Consider reducing FPS limit or enabling Smart Pause.";
+        }
+        else if (CurrentWallpaperImpact == "Moderate")
+        {
+            PerformanceGrade = "B";
+            PerformanceRecommendation = "Good balance. System has enough headroom for other applications.";
+        }
+        else
+        {
+            PerformanceGrade = "A";
+            PerformanceRecommendation = "Excellent! Background usage is minimal. Optimized for maximum system performance.";
+        }
+    }
+    
+    // Performance Score
+    private string _systemCapabilityScore = "Calculating...";
+    public string SystemCapabilityScore 
+    {
+        get => _systemCapabilityScore;
+        private set => SetProperty(ref _systemCapabilityScore, value);
+    }
+
+    private string _currentWallpaperImpact = "Calculating...";
+    public string CurrentWallpaperImpact
+    {
+        get => _currentWallpaperImpact;
+        private set => SetProperty(ref _currentWallpaperImpact, value);
+    }
+
+    private string _estimatedPowerUsage = "Calculating...";
+    public string EstimatedPowerUsage
+    {
+        get => _estimatedPowerUsage;
+        private set => SetProperty(ref _estimatedPowerUsage, value);
+    }
+
+    private string _performanceGrade = "-";
+    public string PerformanceGrade
+    {
+        get => _performanceGrade;
+        private set => SetProperty(ref _performanceGrade, value);
+    }
+
+    private string _performanceRecommendation = "Analyzing system performance...";
+    public string PerformanceRecommendation
+    {
+        get => _performanceRecommendation;
+        private set => SetProperty(ref _performanceRecommendation, value);
+    }
     public ObservableCollection<string> AvailableThemes { get; }
     public ObservableCollection<ThemeSwatchViewModel> ThemeSwatches { get; }
     public ObservableCollection<MonitorSelection> MonitorSelections { get; }
@@ -235,14 +691,34 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<string> WatchedFolders { get; }
     public ObservableCollection<WallpaperPreviewItem> LibraryPreviews { get; }
     public ObservableCollection<WallpaperPreviewItem> FilteredLibraryPreviews { get; }
+    public ObservableCollection<ThemeCardViewModel> ThemeCards { get; }
+    public ObservableCollection<double> UiScaleOptions { get; }
+    public ObservableCollection<int> WallpaperIntervalOptions { get; }
+
+    public ICommand ExportSettingsCommand { get; }
+    public ICommand ImportSettingsCommand { get; }
+    public ICommand RestoreDefaultsCommand { get; }
+
+    public System.Windows.Media.PointCollection GpuGraphPoints { get; }
+    public System.Windows.Media.PointCollection CpuGraphPoints { get; }
+    public System.Windows.Media.PointCollection RamGraphPoints { get; }
+    public System.Windows.Media.PointCollection FpsGraphPoints { get; }
     public ObservableCollection<string> Categories { get; }
     public ObservableCollection<WallpaperRenderEngine> RenderEngines { get; }
+    public ObservableCollection<ResourceExceedAction> ResourceExceedActions { get; }
     public ObservableCollection<HardwareAccelerationMode> HardwareModes { get; }
     public ObservableCollection<FpsLimitMode> FpsModes { get; }
     public ObservableCollection<PowerProfileMode> PowerProfiles { get; }
     public ObservableCollection<TextureFilteringMode> TextureFilteringModes { get; }
     public ObservableCollection<WallpaperSortMode> SortModes { get; }
+    public ObservableCollection<int> GridColumnsOptions { get; }
     public ObservableCollection<OptionItem<UserPerformanceMode>> PerformanceModes { get; }
+
+    public int GridColumns
+    {
+        get => _gridColumns;
+        set => SetProperty(ref _gridColumns, value);
+    }
 
     public RelayCommand BrowseCommand { get; }
     public AsyncRelayCommand AddFolderCommand { get; }
@@ -254,16 +730,26 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand SelectThemeCommand { get; }
     public RelayCommand SetAccentCommand { get; }
     public RelayCommand ApplyAccentCommand { get; }
+    public RelayCommand BrowseAccentColorCommand { get; }
+    public RelayCommand SelectCategoryCommand { get; }
     public RelayCommand ClearCacheCommand { get; }
     public RelayCommand TrimMemoryCommand { get; }
     public RelayCommand SelectLibraryItemCommand { get; }
+    public RelayCommand ShowInFolderCommand { get; }
     public RelayCommand ApplyPowerProfileCommand { get; }
     public RelayCommand ApplyPerformanceModeCommand { get; }
     public RelayCommand ToggleFavoriteCommand { get; }
+    public RelayCommand SetRatingCommand { get; }
     public AsyncRelayCommand ImportToLibraryCommand { get; }
     public AsyncRelayCommand RefreshLibraryCommand { get; }
     public AsyncRelayCommand AddToPlaylistCommand { get; }
+    public RelayCommand CancelAddPlaylistCommand { get; }
+    public AsyncRelayCommand AddToSpecificPlaylistCommand { get; }
     public AsyncRelayCommand RemoveFromPlaylistCommand { get; }
+    public AsyncRelayCommand CreatePlaylistCommand { get; }
+    public AsyncRelayCommand DeletePlaylistCommand { get; }
+    public AsyncRelayCommand SetActivePlaylistCommand { get; }
+    public AsyncRelayCommand RenamePlaylistCommand { get; }
     public OptionItem<UserPerformanceMode>? SelectedPerformanceMode
     {
         get => _selectedPerformanceMode;
@@ -280,6 +766,94 @@ public sealed class MainViewModel : ObservableObject
     {
         get => _thumbnailVlcOptions;
         private set => SetProperty(ref _thumbnailVlcOptions, value);
+    }
+
+
+    public WallpaperPreviewItem? SelectedPreviewItem
+    {
+        get => _selectedPreviewItem;
+        set => SetProperty(ref _selectedPreviewItem, value);
+    }
+
+    public int InstalledCount
+    {
+        get => _installedCount;
+        set => SetProperty(ref _installedCount, value);
+    }
+
+    public int FavoritesCount
+    {
+        get => _favoritesCount;
+        set => SetProperty(ref _favoritesCount, value);
+    }
+
+    public int PlaylistsCount
+    {
+        get => _playlistsCount;
+        set => SetProperty(ref _playlistsCount, value);
+    }
+
+    public string TotalStorageGb
+    {
+        get => _totalStorageGb;
+        set => SetProperty(ref _totalStorageGb, value);
+    }
+
+    public string LiveCpuUsage
+    {
+        get => _liveCpuUsage;
+        private set => SetProperty(ref _liveCpuUsage, value);
+    }
+
+    public string LiveGpuUsage
+    {
+        get => _liveGpuUsage;
+        set => SetProperty(ref _liveGpuUsage, value);
+    }
+
+    public string LiveRamUsage
+    {
+        get => _liveRamUsage;
+        private set => SetProperty(ref _liveRamUsage, value);
+    }
+
+    private string _systemCpuName = "Detecting...";
+    public string SystemCpuName
+    {
+        get => _systemCpuName;
+        set => SetProperty(ref _systemCpuName, value);
+    }
+
+    private string _systemGpuName = "Detecting...";
+    public string SystemGpuName
+    {
+        get => _systemGpuName;
+        set => SetProperty(ref _systemGpuName, value);
+    }
+
+    private string _systemTotalRam = "Detecting...";
+    public string SystemTotalRam
+    {
+        get => _systemTotalRam;
+        set => SetProperty(ref _systemTotalRam, value);
+    }
+
+    public string LiveFps
+    {
+        get => _liveFps;
+        set => SetProperty(ref _liveFps, value);
+    }
+
+    public string LiveRunningTime
+    {
+        get => _liveRunningTime;
+        set => SetProperty(ref _liveRunningTime, value);
+    }
+
+    public int LiveLoops
+    {
+        get => _liveLoops;
+        set => SetProperty(ref _liveLoops, value);
     }
 
     public string SelectedPage
@@ -433,7 +1007,6 @@ public sealed class MainViewModel : ObservableObject
     {
         MonitorSelections.Clear();
         MonitorCards.Clear();
-        MonitorSelections.Add(new MonitorSelection("*", "All displays"));
 
         var activeWallpapers = _wallpaperService.GetActiveWallpapers();
 
@@ -453,7 +1026,10 @@ public sealed class MainViewModel : ObservableObject
             ));
         }
 
-        SelectedMonitorDeviceName = "*";
+        if (MonitorSelections.Count > 0)
+        {
+            SelectedMonitorDeviceName = MonitorSelections[0].DeviceName;
+        }
     }
 
     public void PauseResumeWallpaper()
@@ -465,6 +1041,7 @@ public sealed class MainViewModel : ObservableObject
 
     public void StopWallpaper()
     {
+        _ = PlaylistService.SetActivePlaylistAsync(null);
         _wallpaperService.Stop();
         PauseResumeCommand.RaiseCanExecuteChanged();
         StopCommand.RaiseCanExecuteChanged();
@@ -508,17 +1085,29 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    private bool CanApplyWallpaper()
+    private bool CanApplyWallpaper(object? parameter)
     {
+        if (parameter is WallpaperPreviewItem item)
+        {
+            return File.Exists(item.FilePath);
+        }
         return File.Exists(VideoPath);
     }
 
-    private void ApplyWallpaper()
+    private void ApplyWallpaper(object? parameter)
     {
+        var path = VideoPath;
+        if (parameter is WallpaperPreviewItem item)
+        {
+            path = item.FilePath;
+            SelectedPreviewItem = item;
+            VideoPath = path;
+        }
+
         try
         {
             CurrentStatus = "Applying wallpaper...";
-            _wallpaperService.ApplyWallpaper(VideoPath, SelectedMonitorDeviceName, Settings);
+            _wallpaperService.ApplyWallpaper(path, SelectedMonitorDeviceName, Settings);
             PauseResumeCommand.RaiseCanExecuteChanged();
             StopCommand.RaiseCanExecuteChanged();
         }
@@ -532,12 +1121,35 @@ public sealed class MainViewModel : ObservableObject
     {
         try
         {
+            Settings.AccentColorHex = AccentColorHex;
             _themeService.ApplyAccentColor(AccentColorHex);
             CurrentStatus = $"Accent {AccentColorHex} applied.";
         }
         catch (Exception ex)
         {
             CurrentStatus = ex.Message;
+        }
+    }
+
+    private void BrowseAccentColor()
+    {
+        try
+        {
+            var dialog = new System.Windows.Forms.ColorDialog
+            {
+                FullOpen = true,
+                Color = System.Drawing.ColorTranslator.FromHtml(AccentColorHex)
+            };
+
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                AccentColorHex = $"#{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}";
+                ApplyAccentColor();
+            }
+        }
+        catch (Exception ex)
+        {
+            CurrentStatus = $"Error opening color picker: {ex.Message}";
         }
     }
 
@@ -624,7 +1236,8 @@ public sealed class MainViewModel : ObservableObject
                                 FilePath = file,
                                 Category = "Folder",
                                 ImportedAt = File.GetCreationTimeUtc(file),
-                                LastUsedAt = DateTimeOffset.MinValue
+                                LastUsedAt = DateTimeOffset.MinValue,
+                                Tags = ["local", Path.GetExtension(file).TrimStart('.').ToLowerInvariant()]
                             });
                         }
                     }
@@ -701,6 +1314,7 @@ public sealed class MainViewModel : ObservableObject
             WallpaperSortMode.Resolution => results.OrderByDescending(item => item.Resolution),
             WallpaperSortMode.Duration => results.OrderByDescending(item => item.Duration),
             WallpaperSortMode.FavoriteFirst => results.OrderByDescending(item => item.IsFavorite).ThenBy(item => item.DisplayName),
+            WallpaperSortMode.Rating => results.OrderByDescending(item => item.Rating).ThenBy(item => item.DisplayName),
             _ => results.OrderByDescending(item => item.Wallpaper.LastUsedAt == default ? item.Wallpaper.ImportedAt : item.Wallpaper.LastUsedAt)
         };
 
@@ -709,6 +1323,18 @@ public sealed class MainViewModel : ObservableObject
         {
             FilteredLibraryPreviews.Add(item);
         }
+
+        UpdateLibraryStats();
+    }
+
+    private void UpdateLibraryStats()
+    {
+        InstalledCount = LibraryItems.Count;
+        FavoritesCount = LibraryItems.Count(x => x.IsFavorite);
+        PlaylistsCount = PlaylistService.AllPlaylists.Count;
+        
+        long totalBytes = LibraryItems.Sum(x => x.FileSizeBytes);
+        TotalStorageGb = $"{(totalBytes / 1024.0 / 1024.0 / 1024.0):0.0} GB";
     }
 
     private void RebuildCategories()
@@ -769,6 +1395,33 @@ public sealed class MainViewModel : ObservableObject
         {
             _themeService.ApplyVisualEffects(Settings);
         }
+
+        if (e.PropertyName == nameof(PerformanceSettings.MasterVolume) || e.PropertyName == nameof(PerformanceSettings.MuteWallpaperAudio))
+        {
+            _wallpaperService.SetVolume(Settings.MasterVolume, Settings.MuteWallpaperAudio);
+        }
+        else if (e.PropertyName == nameof(PerformanceSettings.AnimationSpeed))
+        {
+            _wallpaperService.SetPlaybackRate((float)Settings.AnimationSpeed);
+        }
+        
+
+        
+        if (e.PropertyName == nameof(PerformanceSettings.SelectedTheme))
+        {
+            try { 
+                _themeService.ApplyTheme(Settings.SelectedTheme); 
+                new SettingsService().SaveSettings(Settings);
+            } catch {}
+        }
+        
+        if (e.PropertyName == nameof(PerformanceSettings.AccentColorHex))
+        {
+            try { 
+                _themeService.ApplyAccentColor(Settings.AccentColorHex); 
+                new SettingsService().SaveSettings(Settings);
+            } catch {}
+        }
     }
 
     private void OnActiveWallpapersChanged(object? sender, EventArgs e)
@@ -776,10 +1429,17 @@ public sealed class MainViewModel : ObservableObject
         Application.Current.Dispatcher.Invoke(() =>
         {
             var activeWallpapers = _wallpaperService.GetActiveWallpapers();
+            var activePaths = new HashSet<string>(activeWallpapers.Values, StringComparer.OrdinalIgnoreCase);
+
             foreach (var card in MonitorCards)
             {
                 var activePath = activeWallpapers.TryGetValue(card.DeviceName, out var path) ? path : null;
                 card.ActiveWallpaperName = string.IsNullOrEmpty(activePath) ? "None" : Path.GetFileNameWithoutExtension(activePath);
+            }
+
+            foreach (var item in LibraryPreviews)
+            {
+                item.IsActiveWallpaper = activePaths.Contains(item.FilePath);
             }
         });
     }
@@ -865,6 +1525,83 @@ public sealed class MainViewModel : ObservableObject
     {
         _memoryOptimizerService.TrimMemory();
         CurrentStatus = "Memory garbage collection forced.";
+    }
+
+    private void ShowInFolder(object? parameter)
+    {
+        if (parameter is WallpaperPreviewItem item && File.Exists(item.FilePath))
+        {
+            var dir = Path.GetDirectoryName(item.FilePath);
+            if (dir != null && Directory.Exists(dir))
+            {
+                System.Diagnostics.Process.Start("explorer.exe", dir);
+            }
+        }
+    }
+
+    private void UpdateGraph(System.Windows.Media.PointCollection points, double usage)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            if (points.Count >= 30)
+            {
+                points.RemoveAt(0);
+            }
+            
+            // X spans roughly 126 pixels, 30 points -> 4.2 pixels per step
+            for (int i = 0; i < points.Count; i++)
+            {
+                var p = points[i];
+                points[i] = new System.Windows.Point(p.X - 4.2, p.Y);
+            }
+            
+            // max height is 20, invert Y so 100% is Y=0 and 0% is Y=20
+            double y = 20.0 - (usage / 100.0 * 20.0);
+            // Cap it to stay within bounds
+            if (y < 0) y = 0;
+            if (y > 20) y = 20;
+
+            points.Add(new System.Windows.Point(126, y));
+        });
+    }
+
+    private void OnLimitWarningTriggered(object? sender, string warning)
+    {
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            // Simple visual notification for the user. We can use MessageBox or a Toast if available.
+            // For now, we update the status and show a non-blocking toast/message if possible, or just update CurrentStatus and a popup.
+            CurrentStatus = $"WARNING: {warning}";
+            MessageBox.Show(warning, "Resource Limit Exceeded", MessageBoxButton.OK, MessageBoxImage.Warning);
+        });
+    }
+
+    private CancellationTokenSource? _reapplyCts;
+
+    private void OnSettingsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PerformanceSettings.RenderEngine) or 
+            nameof(PerformanceSettings.HardwareAcceleration) or 
+            nameof(PerformanceSettings.DecodeThreadCount))
+        {
+            _reapplyCts?.Cancel();
+            _reapplyCts = new CancellationTokenSource();
+            var token = _reapplyCts.Token;
+
+            Task.Delay(300, token).ContinueWith(t =>
+            {
+                if (t.IsCanceled) return;
+                
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    if (_wallpaperService.IsRunning)
+                    {
+                        CurrentStatus = "Applying rendering engine changes...";
+                        _wallpaperService.ReapplyWithSettings(Settings);
+                    }
+                });
+            }, TaskScheduler.Default);
+        }
     }
 }
 

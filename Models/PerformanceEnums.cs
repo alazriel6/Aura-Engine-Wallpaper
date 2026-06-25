@@ -3,6 +3,9 @@ namespace LiveWallpaperApp.Models;
 public enum WallpaperRenderEngine
 {
     Vlc,
+    DirectX11,
+    DirectX12,
+    OpenGL,
     DirectX,
     SkiaSharp,
     WebView2
@@ -24,8 +27,11 @@ public enum FpsLimitMode
     Fps5,
     Fps15,
     Fps30,
+    Fps45,
     Fps60,
+    Fps90,
     Fps120,
+    Fps144,
     Unlimited
 }
 
@@ -72,5 +78,13 @@ public enum WallpaperSortMode
     Author,
     Resolution,
     Duration,
-    FavoriteFirst
+    FavoriteFirst,
+    Rating
+}
+
+public enum ResourceExceedAction
+{
+    WarnUser,
+    ReduceQuality,
+    PauseWallpaper
 }

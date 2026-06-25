@@ -12,13 +12,29 @@ public sealed class WallpaperPreviewItem : ObservableObject
 
     public WallpaperModel Wallpaper { get; init; } = new();
 
+    public void RaisePropertyChanged(string propertyName) => OnPropertyChanged(propertyName);
+
     public string DisplayName => Wallpaper.DisplayName;
     public string Author => Wallpaper.Author;
     public string Resolution => Wallpaper.Resolution;
     public string Duration => Wallpaper.Duration;
     public string Fps => Wallpaper.Fps <= 0 ? "Unknown FPS" : $"{Wallpaper.Fps:0} FPS";
-    public string TagsText => Wallpaper.Tags.Count == 0 ? "untagged" : string.Join("  /  ", Wallpaper.Tags);
+    public string TagsText => Wallpaper.Tags.Count == 0 ? $"local  /  {System.IO.Path.GetExtension(FilePath).TrimStart('.').ToLowerInvariant()}" : string.Join("  /  ", Wallpaper.Tags);
     public string FilePath => Wallpaper.FilePath;
+    public string FileSizeText => Wallpaper.FileSizeBytes == 0 ? "Unknown Size" : $"{(Wallpaper.FileSizeBytes / 1024.0 / 1024.0):0.0} MB";
+    public string Type => Wallpaper.Type.ToString();
+    public int Rating
+    {
+        get => Wallpaper.Rating;
+        set
+        {
+            if (Wallpaper.Rating != value)
+            {
+                Wallpaper.Rating = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     public string PreviewPath
     {

@@ -59,6 +59,13 @@ public sealed class ThemeService
             Source = new Uri($"pack://application:,,,/LiveWallpaperApp;component/Themes/{themeFile}", UriKind.Absolute)
         });
 
+        // Ensure custom accent remains at the very end
+        if (_customAccentDictionary != null)
+        {
+            dictionaries.Remove(_customAccentDictionary);
+            dictionaries.Add(_customAccentDictionary);
+        }
+
         CurrentTheme = themeName;
     }
 
@@ -67,9 +74,12 @@ public sealed class ThemeService
         var appResources = Application.Current.Resources;
         appResources["GlobalBlurRadius"] = settings.BlurStrength;
         appResources["GlobalGlowRadius"] = settings.GlowIntensity * 100.0;
+        appResources["GlobalGlowOpacity"] = settings.GlowIntensity;
         appResources["GlobalCornerRadius"] = new CornerRadius(settings.BorderRadius);
         appResources["GlobalPanelOpacity"] = settings.PanelOpacity;
     }
+
+    private ResourceDictionary? _customAccentDictionary;
 
     public void ApplyAccentColor(string colorHex)
     {
@@ -84,11 +94,19 @@ public sealed class ThemeService
             throw new ArgumentException($"'{colorHex}' is not a valid WPF color.", nameof(colorHex));
         }
 
-        var resources = Application.Current.Resources;
-        resources["AccentColor"] = color;
-        resources["BorderGlowColor"] = color;
-        resources["AccentBrush"] = new SolidColorBrush(color);
-        resources["BorderGlowBrush"] = new SolidColorBrush(Color.FromArgb(180, color.R, color.G, color.B));
-        resources["SelectionBrush"] = new SolidColorBrush(Color.FromArgb(80, color.R, color.G, color.B));
+        var dictionaries = Application.Current.Resources.MergedDictionaries;
+        if (_customAccentDictionary != null)
+        {
+            dictionaries.Remove(_customAccentDictionary);
+        }
+
+        _customAccentDictionary = new ResourceDictionary();
+        _customAccentDictionary["AccentColor"] = color;
+        _customAccentDictionary["BorderGlowColor"] = color;
+        _customAccentDictionary["AccentBrush"] = new SolidColorBrush(color);
+        _customAccentDictionary["BorderGlowBrush"] = new SolidColorBrush(Color.FromArgb(180, color.R, color.G, color.B));
+        _customAccentDictionary["SelectionBrush"] = new SolidColorBrush(Color.FromArgb(80, color.R, color.G, color.B));
+
+        dictionaries.Add(_customAccentDictionary);
     }
 }

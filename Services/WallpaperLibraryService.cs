@@ -62,6 +62,7 @@ public sealed class WallpaperLibraryService
         {
             DisplayName = Path.GetFileNameWithoutExtension(sourcePath),
             FilePath = targetPath,
+            FileSizeBytes = new FileInfo(targetPath).Length,
             Author = Environment.UserName,
             Category = "Imported",
             Type = ResolveType(sourcePath),

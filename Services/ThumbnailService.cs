@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using LiveWallpaperApp.Models;
+using LibVLCSharp.Shared;
 
 namespace LiveWallpaperApp.Services;
 
@@ -56,6 +57,39 @@ public sealed class ThumbnailService
 
         try
         {
+            if (item.Wallpaper.FileSizeBytes == 0)
+            {
+                try
+                {
+                    var fi = new FileInfo(item.FilePath);
+                    item.Wallpaper.FileSizeBytes = fi.Length;
+                    item.RaisePropertyChanged(nameof(item.FileSizeText));
+                    
+                    var probe = new NReco.VideoInfo.FFProbe();
+                    var info = probe.GetMediaInfo(item.FilePath);
+                    
+                    if (info.Duration > TimeSpan.Zero)
+                    {
+                        item.Wallpaper.Duration = info.Duration.ToString(@"hh\:mm\:ss");
+                    }
+                    
+                    var videoStream = info.Streams.FirstOrDefault(s => s.CodecType == "video");
+                    if (videoStream != null)
+                    {
+                        item.Wallpaper.Resolution = $"{videoStream.Width}x{videoStream.Height}";
+                        if (videoStream.FrameRate > 0)
+                        {
+                            item.Wallpaper.Fps = videoStream.FrameRate;
+                        }
+                    }
+                    
+                    item.RaisePropertyChanged(nameof(item.Resolution));
+                    item.RaisePropertyChanged(nameof(item.Duration));
+                    item.RaisePropertyChanged(nameof(item.Fps));
+                }
+                catch { }
+            }
+
             var previewPath = GetPreviewPath(item.FilePath);
             var isCached = false;
             if (File.Exists(previewPath))
