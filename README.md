@@ -174,3 +174,5 @@ The startup command includes `--minimized`; `MainWindow` reads that flag and sta
 - WinUI 3 migration: move the dashboard to WinUI 3/Mica while keeping renderer processes isolated.
 - SkiaSharp effects: add scanlines, bloom, waveform, and particles as transparent overlay layers.
 - FFmpeg integration: generate thumbnails, probe duration, normalize codecs, and build wallpaper packs.
+
+<img width="1269" height="835" alt="AuraEngine" src="https://github.com/user-attachments/assets/2b6d9ece-71ad-4149-a365-940057c7ed3d" />
